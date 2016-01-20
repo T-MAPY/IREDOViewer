@@ -6,9 +6,9 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context="cz.tmapy.android.iredoviewer.MapsActivity"
-    map:cameraTargetLat="50.209709"
-    map:cameraTargetLng="15.832632"
-    map:cameraZoom="10"
+    map:cameraTargetLat="50.215512"
+    map:cameraTargetLng="15.811845"
+    map:cameraZoom="16"
     map:mapType="normal"
     map:uiCompass="true"
     map:uiRotateGestures="true"
@@ -16,4 +16,4 @@
     map:uiTiltGestures="true"
     map:uiZoomControls="true"
     map:uiZoomGestures="true"
-    />
+    tools:layout="@layout/activity_maps" />
