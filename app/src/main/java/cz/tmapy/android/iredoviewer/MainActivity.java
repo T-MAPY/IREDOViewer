@@ -7,6 +7,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
+import android.location.LocationProvider;
 import android.os.AsyncTask;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -31,9 +32,10 @@ import org.osmdroid.bonuspack.overlays.Polyline;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.MyLocationOverlay;
 import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
+import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 import org.osmdroid.views.util.constants.MapViewConstants;
 
 import java.io.BufferedReader;
@@ -48,7 +50,7 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
 
     MapView map;
-    MyLocationOverlay myLocationOverlay = null;
+    MyLocationNewOverlay myLocationOverlay = null;
 
     private LocationManager mLocMgr;
 
@@ -117,7 +119,7 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
         map.setMultiTouchControls(true);
 
         GeoPoint startPoint = new GeoPoint(50.215512, 15.811845);
-        IMapController mapController = map.getController();
+        final IMapController mapController = map.getController();
         mapController.setZoom(15);
         mapController.setCenter(startPoint);
 
@@ -125,8 +127,17 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
         ScaleBarOverlay myScaleBarOverlay = new ScaleBarOverlay(this);
         map.getOverlays().add(myScaleBarOverlay);
 
-        //Add MyLocationOverlay
-        myLocationOverlay = new MyLocationOverlay(this, map);
+
+        //GpsMyLocationProvider can be replaced by your own class. It provides the position information through GPS or Cell towers.
+        GpsMyLocationProvider imlp = new GpsMyLocationProvider(this.getBaseContext());
+        //minimum distance for update
+        imlp.setLocationUpdateMinDistance(1000);
+        //minimum time for update
+        imlp.setLocationUpdateMinTime(60000);
+        myLocationOverlay = new MyLocationNewOverlay(this.getBaseContext(), imlp, map);
+        myLocationOverlay.setDrawAccuracyEnabled(true);
+        myLocationOverlay.enableFollowLocation();
+        myLocationOverlay.enableMyLocation();
         map.getOverlays().add(myLocationOverlay);
         map.postInvalidate();
     }
@@ -267,7 +278,7 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
             int lat = (int) (lastKnownLocation.getLatitude() * 1E6);
             int lng = (int) (lastKnownLocation.getLongitude() * 1E6);
             GeoPoint gpt = new GeoPoint(lat, lng);
-            map.getController().setCenter(gpt);
+            map.getController().animateTo(gpt);
         }
     }
 
@@ -276,7 +287,6 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
         // TODO Auto-generated method stub
         super.onResume();
         myLocationOverlay.enableMyLocation();
-        myLocationOverlay.enableCompass();
     }
 
     @Override
@@ -284,6 +294,5 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
         // TODO Auto-generated method stub
         super.onPause();
         myLocationOverlay.disableMyLocation();
-        myLocationOverlay.disableCompass();
     }
 }
