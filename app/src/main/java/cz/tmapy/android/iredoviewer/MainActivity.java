@@ -6,9 +6,9 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -16,10 +16,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
 
-import org.osmdroid.DefaultResourceProxyImpl;
-import org.osmdroid.ResourceProxy;
 import org.osmdroid.api.IMapController;
-import org.osmdroid.bonuspack.clustering.RadiusMarkerClusterer;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.KmlFeature;
 import org.osmdroid.bonuspack.kml.KmlLineString;
@@ -73,9 +70,9 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
         }
 
         if (android.os.Build.VERSION.SDK_INT < 23) {
-            locateMe();
+            LocateMe();
         } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            locateMe();
+            LocateMe();
         } else {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
                 Toast.makeText(this, "Persmission is needed to locate your position", Toast.LENGTH_LONG).show();
@@ -99,7 +96,7 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
                     break;
                 case 2:
                     if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                        locateMe();
+                        LocateMe();
                     } else {
                         Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
                     }
@@ -121,7 +118,7 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
 
         GeoPoint startPoint = new GeoPoint(50.215512, 15.811845);
         IMapController mapController = map.getController();
-        mapController.setZoom(17);
+        mapController.setZoom(15);
         mapController.setCenter(startPoint);
 
         //Add Scale Bar
@@ -203,22 +200,24 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
 
         KmlDocument mKmlDocument;
 
-        Drawable busMarker = getResources().getDrawable(R.drawable.marker_node);
+        Drawable busMarker = getResources().getDrawable(R.drawable.push_pin_red);
         Bitmap busBitmap = ((BitmapDrawable) busMarker).getBitmap();
         Style busStyle = new Style(busBitmap, 0x901010AA, 3.0f, 0x20AA1010);
 
-        Drawable trainMarker = getResources().getDrawable(R.drawable.marker_poi_default);
+        Drawable trainMarker = getResources().getDrawable(R.drawable.push_pin_blue);
         Bitmap trainBitmap = ((BitmapDrawable) trainMarker).getBitmap();
         Style trainStyle = new Style(trainBitmap, 0x901010AA, 3.0f, 0x20AA1010);
 
-        public MyStyler(KmlDocument mKmlDocument) {
 
+        public MyStyler(KmlDocument mKmlDocument) {
             this.mKmlDocument = mKmlDocument;
+
+            mKmlDocument.putStyle("bus_style", new Style(busBitmap, 0x901010AA, 3.0f, 0x2010AA10));
+            mKmlDocument.putStyle("train_style", new Style(trainBitmap, 0x901010AA, 3.0f, 0x2010AA10));
         }
 
         @Override
         public void onFeature(Overlay overlay, KmlFeature kmlFeature) {
-
         }
 
         @Override
@@ -228,33 +227,35 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
             fromTo = fromTo + " - " + kmlPlacemark.getExtendedData("dest_time") + " " + kmlPlacemark.getExtendedData("dest");
             marker.setSnippet(fromTo);
             marker.setSubDescription(kmlPlacemark.getExtendedData("time"));
+            marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM);
 
             if ("b".equals(kmlPlacemark.getExtendedData("type"))) {
                 String title = kmlPlacemark.getExtendedData("line_number") + " / " + kmlPlacemark.getExtendedData("service_number");
                 marker.setTitle(title);
-                marker.setIcon(getResources().getDrawable(R.drawable.push_pin_red));
-            } else {
-                marker.setIcon(getResources().getDrawable(R.drawable.push_pin_blue));
-            }
+                marker.setIcon(busMarker);
+                //kmlPlacemark.mStyle = "bus_style";
+                //kmlPoint.applyDefaultStyling(marker, busStyle, kmlPlacemark, mKmlDocument, map);
 
-            marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM);
+            } else {
+                marker.setIcon(trainMarker);
+                //kmlPlacemark.mStyle = "train_style";
+                //kmlPoint.applyDefaultStyling(marker, trainStyle, kmlPlacemark, mKmlDocument, map);
+            }
         }
 
         @Override
         public void onLineString(Polyline polyline, KmlPlacemark kmlPlacemark, KmlLineString kmlLineString) {
-
         }
 
         @Override
         public void onPolygon(Polygon polygon, KmlPlacemark kmlPlacemark, KmlPolygon kmlPolygon) {
-
         }
     }
 
     /**
      * Move map to user location
      */
-    protected void locateMe() {
+    protected void LocateMe() {
         mLocMgr = (LocationManager) getSystemService(LOCATION_SERVICE);
         Location lastKnownLocation = null;
         try {
@@ -262,10 +263,12 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
         } catch (SecurityException e) {
             Log.e(mLogTag, e.getLocalizedMessage(), e);
         }
-        int lat = (int) (lastKnownLocation.getLatitude() * 1E6);
-        int lng = (int) (lastKnownLocation.getLongitude() * 1E6);
-        GeoPoint gpt = new GeoPoint(lat, lng);
-        map.getController().setCenter(gpt);
+        if (lastKnownLocation != null) {
+            int lat = (int) (lastKnownLocation.getLatitude() * 1E6);
+            int lng = (int) (lastKnownLocation.getLongitude() * 1E6);
+            GeoPoint gpt = new GeoPoint(lat, lng);
+            map.getController().setCenter(gpt);
+        }
     }
 
     @Override
