@@ -34,11 +34,8 @@ import org.osmdroid.bonuspack.overlays.Polyline;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.ItemizedIconOverlay;
-import org.osmdroid.views.overlay.ItemizedOverlay;
 import org.osmdroid.views.overlay.MyLocationOverlay;
 import org.osmdroid.views.overlay.Overlay;
-import org.osmdroid.views.overlay.OverlayItem;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
 import org.osmdroid.views.util.constants.MapViewConstants;
 
@@ -47,9 +44,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity implements LocationListener, MapViewConstants {
+public class MainActivity extends AppCompatActivity implements MapViewConstants {
 
     private final static String mLogTag = "IREDOViewerMap";
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
@@ -76,24 +72,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
 
-        LoadMarkers();
-
         if (android.os.Build.VERSION.SDK_INT < 23) {
-
-            mLocMgr = (LocationManager) getSystemService(LOCATION_SERVICE);
-            mLocMgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 3, this);
-
+            locateMe();
         } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-
-            mLocMgr = (LocationManager) getSystemService(LOCATION_SERVICE);
-            mLocMgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 3, this);
-
+            locateMe();
         } else {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
                 Toast.makeText(this, "Persmission is needed to locate your position", Toast.LENGTH_LONG).show();
             }
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
+
+        LoadMarkers();
     }
 
     @Override
@@ -109,10 +99,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                     break;
                 case 2:
                     if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-                        mLocMgr = (LocationManager) getSystemService(LOCATION_SERVICE);
-                        mLocMgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 3, this);
-
+                        locateMe();
                     } else {
                         Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
                     }
@@ -264,6 +251,23 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         }
     }
 
+    /**
+     * Move map to user location
+     */
+    protected void locateMe() {
+        mLocMgr = (LocationManager) getSystemService(LOCATION_SERVICE);
+        Location lastKnownLocation = null;
+        try {
+            lastKnownLocation = mLocMgr.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+        } catch (SecurityException e) {
+            Log.e(mLogTag, e.getLocalizedMessage(), e);
+        }
+        int lat = (int) (lastKnownLocation.getLatitude() * 1E6);
+        int lng = (int) (lastKnownLocation.getLongitude() * 1E6);
+        GeoPoint gpt = new GeoPoint(lat, lng);
+        map.getController().setCenter(gpt);
+    }
+
     @Override
     protected void onResume() {
         // TODO Auto-generated method stub
@@ -279,25 +283,4 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         myLocationOverlay.disableMyLocation();
         myLocationOverlay.disableCompass();
     }
-
-    @Override
-    public void onLocationChanged(Location location) {
-        int lat = (int) (location.getLatitude() * 1E6);
-        int lng = (int) (location.getLongitude() * 1E6);
-        GeoPoint gpt = new GeoPoint(lat, lng);
-        map.getController().setCenter(gpt);
-    }
-
-    @Override
-    public void onProviderDisabled(String arg0) {
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-    }
-
-    @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-    }
-
 }
