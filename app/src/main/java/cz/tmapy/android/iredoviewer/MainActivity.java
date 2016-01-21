@@ -232,12 +232,12 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
             if ("b".equals(kmlPlacemark.getExtendedData("type"))) {
                 String title = kmlPlacemark.getExtendedData("line_number") + " / " + kmlPlacemark.getExtendedData("service_number");
                 marker.setTitle(title);
-                marker.setIcon(getResources().getDrawable(R.drawable.marker_node));
+                marker.setIcon(getResources().getDrawable(R.drawable.push_pin_red));
             } else {
-                marker.setIcon(getResources().getDrawable(R.drawable.marker_poi_default));
+                marker.setIcon(getResources().getDrawable(R.drawable.push_pin_blue));
             }
 
-            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
+            marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM);
         }
 
         @Override
