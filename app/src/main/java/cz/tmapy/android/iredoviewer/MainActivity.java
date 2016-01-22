@@ -6,6 +6,7 @@ import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
 import android.os.AsyncTask;
@@ -37,6 +38,7 @@ import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.IMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
 import org.osmdroid.views.util.constants.MapViewConstants;
 
@@ -46,7 +48,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 
-public class MainActivity extends AppCompatActivity implements MapViewConstants {
+public class MainActivity extends AppCompatActivity {
 
     private final static String mLogTag = "IREDOViewerMap";
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
@@ -54,6 +56,8 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
     MapView map;
     MyLocationNewOverlay myLocationOverlay = null;
     GpsMyLocationProvider locationProvider = null;
+
+    private LocationManager mLocMgr;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,9 +82,6 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
         } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             LocateMe();
         } else {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION)) {
-                Toast.makeText(this, "Persmission is needed to locate your position", Toast.LENGTH_LONG).show();
-            }
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
 
@@ -137,13 +138,14 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
         //GpsMyLocationProvider can be replaced by your own class. It provides the position information through GPS or Cell towers.
         locationProvider = new GpsMyLocationProvider(this.getBaseContext());
         //minimum distance for update
-        locationProvider.setLocationUpdateMinDistance(1000);
+        locationProvider.setLocationUpdateMinDistance(100);
         //minimum time for update
-        locationProvider.setLocationUpdateMinTime(60000);
+        locationProvider.setLocationUpdateMinTime(30000);
         myLocationOverlay = new MyLocationNewOverlay(this.getBaseContext(), locationProvider, map);
         myLocationOverlay.setDrawAccuracyEnabled(true);
-        myLocationOverlay.enableFollowLocation();
+        myLocationOverlay.disableFollowLocation();
         myLocationOverlay.enableMyLocation();
+
         map.getOverlays().add(myLocationOverlay);
         map.postInvalidate();
 
@@ -262,7 +264,7 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
             marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM);
 
             if ("b".equals(kmlPlacemark.getExtendedData("type"))) {
-                String title = kmlPlacemark.getExtendedData("line_number") + " / " + kmlPlacemark.getExtendedData("service_number");
+                String title = "Bus " + kmlPlacemark.getExtendedData("line_number") + " / " + kmlPlacemark.getExtendedData("service_number");
                 marker.setTitle(title);
                 marker.setIcon(busMarker);
                 //kmlPlacemark.mStyle = "bus_style";
@@ -284,7 +286,7 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
     }
 
     /**
-     * Move map to user location
+     * Accureate location
      */
     protected void LocateMe() {
         Location lastKnownLocation = null;
