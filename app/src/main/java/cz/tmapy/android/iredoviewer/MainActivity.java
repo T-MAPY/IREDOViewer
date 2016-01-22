@@ -15,6 +15,8 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.widget.ImageButton;
 import android.widget.Toast;
 
 import org.osmdroid.api.IMapController;
@@ -51,15 +53,14 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
 
     MapView map;
     MyLocationNewOverlay myLocationOverlay = null;
-
-    private LocationManager mLocMgr;
+    GpsMyLocationProvider locationProvider = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //check API version
+        //INIT MAP
         if (android.os.Build.VERSION.SDK_INT < 23) {
             MapInit();
         } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
@@ -71,6 +72,7 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
 
+        //TRY TO LOCATE USER
         if (android.os.Build.VERSION.SDK_INT < 23) {
             LocateMe();
         } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -87,31 +89,35 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permission, int[] grantResults) {
-        try {
-            switch (requestCode) {
-                case 1:
-                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                        MapInit();
-                    } else {
-                        Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
-                    }
-                    break;
-                case 2:
-                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                        LocateMe();
-                    } else {
-                        Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
-                    }
-                    break;
-                default:
-                    super.onRequestPermissionsResult(requestCode, permission, grantResults);
-                    break;
+        if (grantResults != null && grantResults.length > 0)
+            try {
+                switch (requestCode) {
+                    case 1:
+                        if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                            MapInit();
+                        } else {
+                            Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
+                        }
+                        break;
+                    case 2:
+                        if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                            LocateMe();
+                        } else {
+                            Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
+                        }
+                        break;
+                    default:
+                        super.onRequestPermissionsResult(requestCode, permission, grantResults);
+                        break;
+                }
+            } catch (SecurityException e) {
+                Log.e(mLogTag, e.getLocalizedMessage(), e);
             }
-        } catch (SecurityException e) {
-            Log.e(mLogTag, e.getLocalizedMessage(), e);
-        }
     }
 
+    /**
+     * Initialize map
+     */
     private void MapInit() {
         map = (MapView) findViewById(R.id.map);
         map.setTileSource(TileSourceFactory.MAPQUESTOSM);
@@ -129,24 +135,39 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
 
 
         //GpsMyLocationProvider can be replaced by your own class. It provides the position information through GPS or Cell towers.
-        GpsMyLocationProvider imlp = new GpsMyLocationProvider(this.getBaseContext());
+        locationProvider = new GpsMyLocationProvider(this.getBaseContext());
         //minimum distance for update
-        imlp.setLocationUpdateMinDistance(1000);
+        locationProvider.setLocationUpdateMinDistance(1000);
         //minimum time for update
-        imlp.setLocationUpdateMinTime(60000);
-        myLocationOverlay = new MyLocationNewOverlay(this.getBaseContext(), imlp, map);
+        locationProvider.setLocationUpdateMinTime(60000);
+        myLocationOverlay = new MyLocationNewOverlay(this.getBaseContext(), locationProvider, map);
         myLocationOverlay.setDrawAccuracyEnabled(true);
         myLocationOverlay.enableFollowLocation();
         myLocationOverlay.enableMyLocation();
         map.getOverlays().add(myLocationOverlay);
         map.postInvalidate();
+
+        ImageButton gotoLocationButton = (ImageButton) findViewById(R.id.map_goto_location);
+        gotoLocationButton.setAlpha(0.5f);
+        gotoLocationButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                LocateMe();
+            }
+        });
     }
 
+    /**
+     * Load markers to the map
+     */
     private void LoadMarkers() {
         DownloadGeoJsonFile downloadSpojeGeoJsonFile = new DownloadGeoJsonFile(1);
         downloadSpojeGeoJsonFile.execute(mSpojeUrl);
     }
 
+    /**
+     * Async task to load GeoJson data
+     */
     private class DownloadGeoJsonFile extends AsyncTask<String, Void, String> {
         private int mLayerId = 0;
 
@@ -211,11 +232,11 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
 
         KmlDocument mKmlDocument;
 
-        Drawable busMarker = getResources().getDrawable(R.drawable.push_pin_red);
+        Drawable busMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.push_pin_red);
         Bitmap busBitmap = ((BitmapDrawable) busMarker).getBitmap();
         Style busStyle = new Style(busBitmap, 0x901010AA, 3.0f, 0x20AA1010);
 
-        Drawable trainMarker = getResources().getDrawable(R.drawable.push_pin_blue);
+        Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.push_pin_blue);
         Bitmap trainBitmap = ((BitmapDrawable) trainMarker).getBitmap();
         Style trainStyle = new Style(trainBitmap, 0x901010AA, 3.0f, 0x20AA1010);
 
@@ -246,7 +267,6 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
                 marker.setIcon(busMarker);
                 //kmlPlacemark.mStyle = "bus_style";
                 //kmlPoint.applyDefaultStyling(marker, busStyle, kmlPlacemark, mKmlDocument, map);
-
             } else {
                 marker.setIcon(trainMarker);
                 //kmlPlacemark.mStyle = "train_style";
@@ -267,13 +287,13 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
      * Move map to user location
      */
     protected void LocateMe() {
-        mLocMgr = (LocationManager) getSystemService(LOCATION_SERVICE);
         Location lastKnownLocation = null;
-        try {
-            lastKnownLocation = mLocMgr.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-        } catch (SecurityException e) {
-            Log.e(mLogTag, e.getLocalizedMessage(), e);
-        }
+        if (locationProvider != null)
+            try {
+                lastKnownLocation = locationProvider.getLastKnownLocation();
+            } catch (SecurityException e) {
+                Log.e(mLogTag, e.getLocalizedMessage(), e);
+            }
         if (lastKnownLocation != null) {
             int lat = (int) (lastKnownLocation.getLatitude() * 1E6);
             int lng = (int) (lastKnownLocation.getLongitude() * 1E6);
@@ -286,13 +306,13 @@ public class MainActivity extends AppCompatActivity implements MapViewConstants 
     protected void onResume() {
         // TODO Auto-generated method stub
         super.onResume();
-        myLocationOverlay.enableMyLocation();
+        if (myLocationOverlay != null) myLocationOverlay.enableMyLocation();
     }
 
     @Override
     protected void onPause() {
         // TODO Auto-generated method stub
         super.onPause();
-        myLocationOverlay.disableMyLocation();
+        if (myLocationOverlay != null) myLocationOverlay.disableMyLocation();
     }
 }
