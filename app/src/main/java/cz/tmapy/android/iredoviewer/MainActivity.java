@@ -3,6 +3,7 @@ package cz.tmapy.android.iredoviewer;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
@@ -21,8 +22,11 @@ import android.widget.ImageButton;
 import android.widget.Toast;
 
 import org.osmdroid.api.IMapController;
+import org.osmdroid.bonuspack.clustering.RadiusMarkerClusterer;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.KmlFeature;
+import org.osmdroid.bonuspack.kml.KmlFolder;
+import org.osmdroid.bonuspack.kml.KmlGeometry;
 import org.osmdroid.bonuspack.kml.KmlLineString;
 import org.osmdroid.bonuspack.kml.KmlPlacemark;
 import org.osmdroid.bonuspack.kml.KmlPoint;
@@ -37,6 +41,7 @@ import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
+import org.osmdroid.views.overlay.compass.CompassOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.IMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
@@ -134,6 +139,9 @@ public class MainActivity extends AppCompatActivity {
         ScaleBarOverlay myScaleBarOverlay = new ScaleBarOverlay(this);
         map.getOverlays().add(myScaleBarOverlay);
 
+        CompassOverlay compassOverlay = new CompassOverlay(this, map);
+        compassOverlay.enableCompass();
+        map.getOverlays().add(compassOverlay);
 
         //GpsMyLocationProvider can be replaced by your own class. It provides the position information through GPS or Cell towers.
         locationProvider = new GpsMyLocationProvider(this.getBaseContext());
@@ -279,11 +287,11 @@ public class MainActivity extends AppCompatActivity {
 
         KmlDocument mKmlDocument;
 
-        Drawable busMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.push_pin_red);
+        Drawable busMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.bus);
         Bitmap busBitmap = ((BitmapDrawable) busMarker).getBitmap();
         Style busStyle = new Style(busBitmap, 0x901010AA, 3.0f, 0x20AA1010);
 
-        Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.push_pin_blue);
+        Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.rail);
         Bitmap trainBitmap = ((BitmapDrawable) trainMarker).getBitmap();
         Style trainStyle = new Style(trainBitmap, 0x901010AA, 3.0f, 0x20AA1010);
 
@@ -306,7 +314,8 @@ public class MainActivity extends AppCompatActivity {
             fromTo = fromTo + " - " + kmlPlacemark.getExtendedData("dest_time") + " " + kmlPlacemark.getExtendedData("dest");
             marker.setSnippet(fromTo);
             marker.setSubDescription(kmlPlacemark.getExtendedData("time"));
-            marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM);
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
+            //marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM); //for pins
 
             if ("b".equals(kmlPlacemark.getExtendedData("type"))) {
                 String title = "Bus " + kmlPlacemark.getExtendedData("line_number") + " / " + kmlPlacemark.getExtendedData("service_number");
@@ -351,14 +360,12 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onResume() {
-        // TODO Auto-generated method stub
         super.onResume();
         if (myLocationOverlay != null) myLocationOverlay.enableMyLocation();
     }
 
     @Override
     protected void onPause() {
-        // TODO Auto-generated method stub
         super.onPause();
         if (myLocationOverlay != null) myLocationOverlay.disableMyLocation();
     }
