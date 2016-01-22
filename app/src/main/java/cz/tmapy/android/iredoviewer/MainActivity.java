@@ -213,14 +213,59 @@ public class MainActivity extends AppCompatActivity {
                         KmlDocument kmlDocument = new KmlDocument();
                         kmlDocument.parseGeoJSON(jsonString);
 
-                        KmlFeature.Styler styler = new MyStyler(kmlDocument);
-                        FolderOverlay kmlOverlay = (FolderOverlay) kmlDocument.mKmlRoot.buildOverlay(map, null, styler, kmlDocument);
+                        //Marker Clustering
+                        RadiusMarkerClusterer clusteredOverlay = new RadiusMarkerClusterer(getApplication());
+                        Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
+                        Bitmap clusterIcon = ((BitmapDrawable)clusterIconD).getBitmap();
+                        clusteredOverlay.setIcon(clusterIcon);
+                        clusteredOverlay.getTextPaint().setTextSize(32.0f);
+                        clusteredOverlay.getTextPaint().setFakeBoldText(true);
+                        clusteredOverlay.getTextPaint().setColor(Color.DKGRAY);
 
-                        map.getOverlays().add(kmlOverlay);
+                        Drawable busMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.bus);
+                        Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.rail);
+
+                        if (kmlDocument != null) {
+                            for (KmlFeature feature:kmlDocument.mKmlRoot.mItems){
+                                if (feature.hasGeometry(KmlPoint.class))
+                                {
+                                    Marker marker = new Marker(map);
+                                    KmlPlacemark placemark = (KmlPlacemark)feature;
+                                    KmlPoint geometry = (KmlPoint)placemark.mGeometry;
+                                    marker.setPosition(geometry.getPosition());
+
+                                    String fromTo = feature.getExtendedData("dep_time") + " " + feature.getExtendedData("dep");
+                                    fromTo = fromTo + " - " + feature.getExtendedData("dest_time") + " " + feature.getExtendedData("dest");
+                                    marker.setSnippet(fromTo);
+                                    marker.setSubDescription(feature.getExtendedData("time"));
+                                    marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
+                                    //marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM); //for pins
+
+                                    if ("b".equals(feature.getExtendedData("type"))) {
+                                        marker.setTitle("Bus " + feature.getExtendedData("line_number") + " / " + feature.getExtendedData("service_number"));
+                                        marker.setIcon(busMarker);
+                                    } else {
+                                        marker.setTitle(feature.getExtendedData("name"));
+                                        marker.setIcon(trainMarker);
+                                    }
+
+                                    //marker.setInfoWindow(new CustomInfoWindow(map));
+                                    marker.setRelatedObject(feature);
+                                    clusteredOverlay.add(marker);
+                                }
+                            }
+                        }
+
+                        map.getOverlays().add(clusteredOverlay);
                         map.invalidate();
+                        break;
 
-                        //BoundingBoxE6 bb = kmlDocument.mKmlRoot.getBoundingBox();
-                        //  map.zoomToBoundingBox(bb);
+                    case 2:
+                        KmlDocument stationsDocument = new KmlDocument();
+                        stationsDocument.parseGeoJSON(jsonString);
+                        KmlFeature.Styler styler = new MyStyler(stationsDocument);
+                        FolderOverlay stationsOverlay = (FolderOverlay) stationsDocument.mKmlRoot.buildOverlay(map, null, styler, stationsDocument);
+                        map.getOverlays().add(stationsOverlay);
                         break;
                 }
             }
