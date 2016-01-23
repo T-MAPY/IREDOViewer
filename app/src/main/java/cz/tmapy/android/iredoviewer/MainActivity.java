@@ -3,7 +3,10 @@ package cz.tmapy.android.iredoviewer;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
@@ -251,10 +254,10 @@ public class MainActivity extends AppCompatActivity {
 
                                     if ("b".equals(feature.getExtendedData("type"))) {
                                         marker.setTitle("Bus " + feature.getExtendedData("line_number") + " / " + feature.getExtendedData("service_number"));
-                                        marker.setIcon(busMarker);
+                                        marker.setIcon(writeOnDrawable(R.drawable.bus,feature.getExtendedData("dest")));
                                     } else {
                                         marker.setTitle(feature.getExtendedData("name"));
-                                        marker.setIcon(trainMarker);
+                                        marker.setIcon(writeOnDrawable(R.drawable.rail,feature.getExtendedData("dest")));
                                     }
 
                                     //marker.setInfoWindow(new CustomInfoWindow(map));
@@ -278,6 +281,26 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    /**
+     * Draw text onto icon
+     * @param drawableId
+     * @param text
+     * @return
+     */
+    public BitmapDrawable writeOnDrawable(int drawableId, String text){
+
+        Bitmap bm = BitmapFactory.decodeResource(getResources(), drawableId).copy(Bitmap.Config.ARGB_8888, true);
+
+        Paint paint = new Paint();
+        paint.setTextSize(32.0f);
+        paint.setColor(Color.BLACK);
+
+        Canvas canvas = new Canvas(bm);
+        canvas.drawText(text, 0, bm.getHeight()/2, paint);
+
+        return new BitmapDrawable(getResources(), bm);
     }
 
     /**
