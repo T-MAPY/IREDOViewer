@@ -259,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
                                         marker.setTitle("Bus " + feature.getExtendedData("line_number") + " / " + feature.getExtendedData("service_number"));
                                         marker.setIcon(writeOnDrawable(R.drawable.bus48x48, textToIcon));
                                     } else {
-                                        marker.setTitle(feature.getExtendedData("name"));
+                                        marker.setTitle(feature.mName);
                                         marker.setIcon(writeOnDrawable(R.drawable.rail48x48, textToIcon));
                                     }
 
