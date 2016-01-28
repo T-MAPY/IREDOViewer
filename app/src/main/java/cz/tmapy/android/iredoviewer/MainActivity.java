@@ -303,10 +303,12 @@ public class MainActivity extends AppCompatActivity {
         float textLength = paint.measureText(text);
 
         if (originalIcon.getWidth() < textLength) {
-            Canvas canvas = new Canvas(originalIcon);
+            Bitmap newBitmap = Bitmap.createBitmap(Math.round(textLength), originalIcon.getHeight(), Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(newBitmap);
+            canvas.drawBitmap(originalIcon,(newBitmap.getWidth() - originalIcon.getWidth()) / 2, 0, null);
             canvas.drawText(text, 0, originalIcon.getHeight() / 2, paint);
 
-            return new BitmapDrawable(getResources(), originalIcon);
+            return new BitmapDrawable(getResources(), newBitmap);
         } else
         {
             Canvas canvas = new Canvas(originalIcon);
