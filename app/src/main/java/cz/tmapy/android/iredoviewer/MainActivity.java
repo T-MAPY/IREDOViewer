@@ -13,6 +13,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationProvider;
+import android.media.audiofx.LoudnessEnhancer;
 import android.os.AsyncTask;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -55,6 +56,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.util.StringTokenizer;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -227,7 +229,7 @@ public class MainActivity extends AppCompatActivity {
                         //Marker Clustering
                         RadiusMarkerClusterer clusteredOverlay = new RadiusMarkerClusterer(getApplication());
                         Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
-                        Bitmap clusterIcon = ((BitmapDrawable)clusterIconD).getBitmap();
+                        Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
                         clusteredOverlay.setIcon(clusterIcon);
                         clusteredOverlay.getTextPaint().setTextSize(32.0f);
                         clusteredOverlay.getTextPaint().setFakeBoldText(true);
@@ -237,12 +239,11 @@ public class MainActivity extends AppCompatActivity {
                         Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.rail);
 
                         if (kmlDocument != null) {
-                            for (KmlFeature feature:kmlDocument.mKmlRoot.mItems){
-                                if (feature.hasGeometry(KmlPoint.class))
-                                {
+                            for (KmlFeature feature : kmlDocument.mKmlRoot.mItems) {
+                                if (feature.hasGeometry(KmlPoint.class)) {
                                     Marker marker = new Marker(map);
-                                    KmlPlacemark placemark = (KmlPlacemark)feature;
-                                    KmlPoint geometry = (KmlPoint)placemark.mGeometry;
+                                    KmlPlacemark placemark = (KmlPlacemark) feature;
+                                    KmlPoint geometry = (KmlPoint) placemark.mGeometry;
                                     marker.setPosition(geometry.getPosition());
 
                                     String fromTo = feature.getExtendedData("dep_time") + " " + feature.getExtendedData("dep");
@@ -252,12 +253,14 @@ public class MainActivity extends AppCompatActivity {
                                     marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
                                     //marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM); //for pins
 
+                                    String[] parts = feature.getExtendedData("dest").split(",");
+                                    String textToIcon = parts[0];
                                     if ("b".equals(feature.getExtendedData("type"))) {
                                         marker.setTitle("Bus " + feature.getExtendedData("line_number") + " / " + feature.getExtendedData("service_number"));
-                                        marker.setIcon(writeOnDrawable(R.drawable.bus,feature.getExtendedData("dest")));
+                                        marker.setIcon(writeOnDrawable(R.drawable.bus48x48, textToIcon));
                                     } else {
                                         marker.setTitle(feature.getExtendedData("name"));
-                                        marker.setIcon(writeOnDrawable(R.drawable.rail,feature.getExtendedData("dest")));
+                                        marker.setIcon(writeOnDrawable(R.drawable.rail48x48, textToIcon));
                                     }
 
                                     //marker.setInfoWindow(new CustomInfoWindow(map));
@@ -285,22 +288,32 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Draw text onto icon
+     *
      * @param drawableId
      * @param text
      * @return
      */
-    public BitmapDrawable writeOnDrawable(int drawableId, String text){
+    public BitmapDrawable writeOnDrawable(int drawableId, String text) {
 
-        Bitmap bm = BitmapFactory.decodeResource(getResources(), drawableId).copy(Bitmap.Config.ARGB_8888, true);
+        Bitmap originalIcon = BitmapFactory.decodeResource(getResources(), drawableId).copy(Bitmap.Config.ARGB_8888, true);
 
         Paint paint = new Paint();
         paint.setTextSize(32.0f);
         paint.setColor(Color.BLACK);
+        float textLength = paint.measureText(text);
 
-        Canvas canvas = new Canvas(bm);
-        canvas.drawText(text, 0, bm.getHeight()/2, paint);
+        if (originalIcon.getWidth() < textLength) {
+            Canvas canvas = new Canvas(originalIcon);
+            canvas.drawText(text, 0, originalIcon.getHeight() / 2, paint);
 
-        return new BitmapDrawable(getResources(), bm);
+            return new BitmapDrawable(getResources(), originalIcon);
+        } else
+        {
+            Canvas canvas = new Canvas(originalIcon);
+            canvas.drawText(text, (originalIcon.getWidth() - textLength) /2, originalIcon.getHeight() / 2, paint);
+
+            return new BitmapDrawable(getResources(), originalIcon);
+        }
     }
 
     /**
