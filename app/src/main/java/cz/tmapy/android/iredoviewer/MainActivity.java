@@ -10,12 +10,8 @@ import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
-import android.location.LocationProvider;
-import android.media.audiofx.LoudnessEnhancer;
 import android.os.AsyncTask;
-import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -29,8 +25,6 @@ import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.clustering.RadiusMarkerClusterer;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.KmlFeature;
-import org.osmdroid.bonuspack.kml.KmlFolder;
-import org.osmdroid.bonuspack.kml.KmlGeometry;
 import org.osmdroid.bonuspack.kml.KmlLineString;
 import org.osmdroid.bonuspack.kml.KmlPlacemark;
 import org.osmdroid.bonuspack.kml.KmlPoint;
@@ -47,27 +41,31 @@ import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
 import org.osmdroid.views.overlay.compass.CompassOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
-import org.osmdroid.views.overlay.mylocation.IMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
-import org.osmdroid.views.util.constants.MapViewConstants;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.util.StringTokenizer;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final static String mLogTag = "IREDOViewerMap";
+    private final static String TAG = "IREDOViewerMap";
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
 
     MapView map;
     MyLocationNewOverlay myLocationOverlay = null;
+    RadiusMarkerClusterer vehiclesOverlay = null;
+    private static int MYLOCATION_OVERLAY_INDEX = 1;
+    private static int VEHICLES_OVERLAY_INDEX = 2;
     GpsMyLocationProvider locationProvider = null;
 
     private LocationManager mLocMgr;
+    private Timer reloadDataTimer;
+    private static int MAP_UPDATE_INTERVAL_MS = 10000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,6 +94,15 @@ public class MainActivity extends AppCompatActivity {
         }
 
         LoadMarkers();
+
+        reloadDataTimer = new Timer();
+        reloadDataTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                LoadMarkers();
+            }
+
+        }, 0, MAP_UPDATE_INTERVAL_MS);
     }
 
     @Override
@@ -122,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
                         break;
                 }
             } catch (SecurityException e) {
-                Log.e(mLogTag, e.getLocalizedMessage(), e);
+                Log.e(TAG, e.getLocalizedMessage(), e);
             }
     }
 
@@ -159,7 +166,19 @@ public class MainActivity extends AppCompatActivity {
         myLocationOverlay.disableFollowLocation();
         myLocationOverlay.enableMyLocation();
 
-        map.getOverlays().add(myLocationOverlay);
+        map.getOverlays().add(MYLOCATION_OVERLAY_INDEX,myLocationOverlay);
+
+        //Init vehicles overlay
+        vehiclesOverlay = new RadiusMarkerClusterer(getApplication());
+        Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
+        Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
+        vehiclesOverlay.setIcon(clusterIcon);
+        vehiclesOverlay.getTextPaint().setTextSize(32.0f);
+        vehiclesOverlay.getTextPaint().setFakeBoldText(true);
+        vehiclesOverlay.getTextPaint().setColor(Color.DKGRAY);
+
+        map.getOverlays().add(VEHICLES_OVERLAY_INDEX, vehiclesOverlay);
+
         map.postInvalidate();
 
         ImageButton gotoLocationButton = (ImageButton) findViewById(R.id.map_goto_location);
@@ -173,7 +192,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Load markers to the map
+     * Load markers of buses and trains to the map
      */
     private void LoadMarkers() {
         DownloadGeoJsonFile downloadSpojeGeoJsonFile = new DownloadGeoJsonFile(1);
@@ -194,6 +213,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected String doInBackground(String... params) {
             try {
+                Log.d(TAG,"Data loading...");
                 URL url = new URL(params[0]);
                 // Open a stream from the URL
                 InputStream stream = url.openStream();
@@ -210,10 +230,10 @@ public class MainActivity extends AppCompatActivity {
                 // Close the stream
                 reader.close();
                 stream.close();
-
+                Log.d(TAG,"Loading finished");
                 return result.toString();
             } catch (IOException e) {
-                Log.e(mLogTag, "GeoJSON file could not be read");
+                Log.e(TAG, "GeoJSON file could not be read");
             }
             return null;
         }
@@ -226,19 +246,10 @@ public class MainActivity extends AppCompatActivity {
                         KmlDocument kmlDocument = new KmlDocument();
                         kmlDocument.parseGeoJSON(jsonString);
 
-                        //Marker Clustering
-                        RadiusMarkerClusterer clusteredOverlay = new RadiusMarkerClusterer(getApplication());
-                        Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
-                        Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
-                        clusteredOverlay.setIcon(clusterIcon);
-                        clusteredOverlay.getTextPaint().setTextSize(32.0f);
-                        clusteredOverlay.getTextPaint().setFakeBoldText(true);
-                        clusteredOverlay.getTextPaint().setColor(Color.DKGRAY);
-
-                        Drawable busMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.bus);
-                        Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.rail);
-
+                        vehiclesOverlay.getItems().clear();
+                        vehiclesOverlay.invalidate();
                         if (kmlDocument != null) {
+                            vehiclesOverlay.getItems().clear();
                             for (KmlFeature feature : kmlDocument.mKmlRoot.mItems) {
                                 if (feature.hasGeometry(KmlPoint.class)) {
                                     Marker marker = new Marker(map);
@@ -265,13 +276,13 @@ public class MainActivity extends AppCompatActivity {
 
                                     //marker.setInfoWindow(new CustomInfoWindow(map));
                                     marker.setRelatedObject(feature);
-                                    clusteredOverlay.add(marker);
+                                    vehiclesOverlay.add(marker);
                                 }
                             }
                         }
 
-                        map.getOverlays().add(clusteredOverlay);
                         map.invalidate();
+                        Log.d(TAG, "Map updated");
                         break;
 
                     case 2:
@@ -305,14 +316,13 @@ public class MainActivity extends AppCompatActivity {
         if (originalIcon.getWidth() < textLength) {
             Bitmap newBitmap = Bitmap.createBitmap(Math.round(textLength), originalIcon.getHeight(), Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(newBitmap);
-            canvas.drawBitmap(originalIcon,(newBitmap.getWidth() - originalIcon.getWidth()) / 2, 0, null);
+            canvas.drawBitmap(originalIcon, (newBitmap.getWidth() - originalIcon.getWidth()) / 2, 0, null);
             canvas.drawText(text, 0, originalIcon.getHeight() / 2, paint);
 
             return new BitmapDrawable(getResources(), newBitmap);
-        } else
-        {
+        } else {
             Canvas canvas = new Canvas(originalIcon);
-            canvas.drawText(text, (originalIcon.getWidth() - textLength) /2, originalIcon.getHeight() / 2, paint);
+            canvas.drawText(text, (originalIcon.getWidth() - textLength) / 2, originalIcon.getHeight() / 2, paint);
 
             return new BitmapDrawable(getResources(), originalIcon);
         }
@@ -386,7 +396,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 lastKnownLocation = locationProvider.getLastKnownLocation();
             } catch (SecurityException e) {
-                Log.e(mLogTag, e.getLocalizedMessage(), e);
+                Log.e(TAG, e.getLocalizedMessage(), e);
             }
         if (lastKnownLocation != null) {
             int lat = (int) (lastKnownLocation.getLatitude() * 1E6);
