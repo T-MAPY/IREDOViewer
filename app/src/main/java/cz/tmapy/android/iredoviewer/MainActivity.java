@@ -105,18 +105,6 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
 
-        progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
-                getResources().getString(R.string.data_loading_message), true);
-        LoadMarkers();
-
-        reloadDataTimer = new Timer();
-        reloadDataTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                LoadMarkers();
-            }
-
-        }, 0, MAP_UPDATE_INTERVAL_MS);
     }
 
     @Override
@@ -204,6 +192,18 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
+                getResources().getString(R.string.data_loading_message), true);
+        LoadMarkers();
+
+        reloadDataTimer = new Timer();
+        reloadDataTimer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                LoadMarkers();
+            }
+
+        }, 0, MAP_UPDATE_INTERVAL_MS);
     }
     /**
      * Load markers of buses and trains to the map
