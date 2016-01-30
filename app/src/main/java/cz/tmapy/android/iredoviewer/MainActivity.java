@@ -57,7 +57,6 @@ import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
 import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -175,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
         Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
         Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
         vehiclesOverlay.setIcon(clusterIcon);
-        vehiclesOverlay.getTextPaint().setTextSize(32.0f);
+        vehiclesOverlay.getTextPaint().setTextSize(28);
         vehiclesOverlay.getTextPaint().setFakeBoldText(true);
         vehiclesOverlay.getTextPaint().setColor(Color.DKGRAY);
 
@@ -326,7 +325,7 @@ public class MainActivity extends AppCompatActivity {
         Bitmap originalIcon = BitmapFactory.decodeResource(getResources(), drawableId).copy(Bitmap.Config.ARGB_8888, true);
 
         Paint paint = new Paint();
-        paint.setTextSize(32.0f);
+        paint.setTextSize(28);
         paint.setColor(Color.BLACK);
         float textLength = paint.measureText(text);
 
