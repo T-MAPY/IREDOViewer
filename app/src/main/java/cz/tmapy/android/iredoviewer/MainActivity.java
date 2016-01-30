@@ -1,6 +1,7 @@
 package cz.tmapy.android.iredoviewer;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -77,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
     private Timer reloadDataTimer;
     private static int MAP_UPDATE_INTERVAL_MS = 10000;
 
+    private ProgressDialog progress = null;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -89,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
             MapInit();
         } else {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                Toast.makeText(this, "Persmission is needed to write map cache", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, getResources().getString(R.string.perm_write_cache), Toast.LENGTH_LONG).show();
             }
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
@@ -103,6 +105,8 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
 
+        progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
+                getResources().getString(R.string.data_loading_message), true);
         LoadMarkers();
 
         reloadDataTimer = new Timer();
@@ -277,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
                                     format.setTimeZone(TimeZone.getTimeZone("UTC"));
                                     try {
                                         Date date = format.parse(feature.getExtendedData("time"));
-                                        marker.setSubDescription("Stav k: " + new SimpleDateFormat("dd.MM. HH:mm:ss").format(date));
+                                        marker.setSubDescription(getResources().getString(R.string.tooltip_state) + " " + new SimpleDateFormat("dd.MM. HH:mm:ss").format(date));
                                     } catch (ParseException e) {
                                         Log.e(TAG,e.getLocalizedMessage(),e);
                                         marker.setSubDescription(feature.getExtendedData("time"));
@@ -304,16 +308,9 @@ public class MainActivity extends AppCompatActivity {
                         map.invalidate();
                         Log.d(TAG, "Map updated");
                         break;
-
-                    case 2:
-                        KmlDocument stationsDocument = new KmlDocument();
-                        stationsDocument.parseGeoJSON(jsonString);
-                        KmlFeature.Styler styler = new MyStyler(stationsDocument);
-                        FolderOverlay stationsOverlay = (FolderOverlay) stationsDocument.mKmlRoot.buildOverlay(map, null, styler, stationsDocument);
-                        map.getOverlays().add(stationsOverlay);
-                        break;
                 }
             }
+            if (progress != null) progress.dismiss();
         }
     }
 
@@ -345,65 +342,6 @@ public class MainActivity extends AppCompatActivity {
             canvas.drawText(text, (originalIcon.getWidth() - textLength) / 2, originalIcon.getHeight() / 2, paint);
 
             return new BitmapDrawable(getResources(), originalIcon);
-        }
-    }
-
-    /**
-     * Styler calss for buses and trains
-     */
-    private class MyStyler implements KmlFeature.Styler {
-
-        KmlDocument mKmlDocument;
-
-        Drawable busMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.bus);
-        Bitmap busBitmap = ((BitmapDrawable) busMarker).getBitmap();
-        Style busStyle = new Style(busBitmap, 0x901010AA, 3.0f, 0x20AA1010);
-
-        Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.rail);
-        Bitmap trainBitmap = ((BitmapDrawable) trainMarker).getBitmap();
-        Style trainStyle = new Style(trainBitmap, 0x901010AA, 3.0f, 0x20AA1010);
-
-
-        public MyStyler(KmlDocument mKmlDocument) {
-            this.mKmlDocument = mKmlDocument;
-
-            mKmlDocument.putStyle("bus_style", new Style(busBitmap, 0x901010AA, 3.0f, 0x2010AA10));
-            mKmlDocument.putStyle("train_style", new Style(trainBitmap, 0x901010AA, 3.0f, 0x2010AA10));
-        }
-
-        @Override
-        public void onFeature(Overlay overlay, KmlFeature kmlFeature) {
-        }
-
-        @Override
-        public void onPoint(Marker marker, KmlPlacemark kmlPlacemark, KmlPoint kmlPoint) {
-
-            String fromTo = kmlPlacemark.getExtendedData("dep_time") + " " + kmlPlacemark.getExtendedData("dep");
-            fromTo = fromTo + " - " + kmlPlacemark.getExtendedData("dest_time") + " " + kmlPlacemark.getExtendedData("dest");
-            marker.setSnippet(fromTo);
-            marker.setSubDescription(kmlPlacemark.getExtendedData("time"));
-            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
-            //marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM); //for pins
-
-            if ("b".equals(kmlPlacemark.getExtendedData("type"))) {
-                String title = "Bus " + kmlPlacemark.getExtendedData("line_number") + " / " + kmlPlacemark.getExtendedData("service_number");
-                marker.setTitle(title);
-                marker.setIcon(busMarker);
-                //kmlPlacemark.mStyle = "bus_style";
-                //kmlPoint.applyDefaultStyling(marker, busStyle, kmlPlacemark, mKmlDocument, map);
-            } else {
-                marker.setIcon(trainMarker);
-                //kmlPlacemark.mStyle = "train_style";
-                //kmlPoint.applyDefaultStyling(marker, trainStyle, kmlPlacemark, mKmlDocument, map);
-            }
-        }
-
-        @Override
-        public void onLineString(Polyline polyline, KmlPlacemark kmlPlacemark, KmlLineString kmlLineString) {
-        }
-
-        @Override
-        public void onPolygon(Polygon polygon, KmlPlacemark kmlPlacemark, KmlPolygon kmlPolygon) {
         }
     }
 
