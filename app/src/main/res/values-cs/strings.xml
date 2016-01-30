@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">IREDO Viewer</string>
+    <string name="title_activity_maps">IREDO Viewer</string>
+    <string name="data_loading_title">Načítání</string>
+    <string name="data_loading_message">Moment prosím</string>
+    <string name="perm_write_cache">Právo je potřeba pro ukládání mapové cache</string>
+    <string name="tooltip_state">Stav k: </string>
+</resources>
