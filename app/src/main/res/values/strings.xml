@@ -1,9 +1,4 @@
 <resources>
     <string name="app_name">IREDO Viewer</string>
     <string name="title_activity_maps">IREDO Viewer</string>
-    <string name="data_loading_title">Loading</string>
-    <string name="data_loading_message">Wait a moment</string>
-    <string name="perm_write_cache">Persmission is needed to write map cache</string>
-    <string name="tooltip_state">State time:</string>
-    <string name="perm_not_granted">Permission was not granted</string>
 </resources>

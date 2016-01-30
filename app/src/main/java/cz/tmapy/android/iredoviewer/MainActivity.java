@@ -1,7 +1,6 @@
 package cz.tmapy.android.iredoviewer;
 
 import android.Manifest;
-import android.app.ProgressDialog;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -11,8 +10,12 @@ import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
+import android.location.LocationProvider;
+import android.media.audiofx.LoudnessEnhancer;
 import android.os.AsyncTask;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -26,46 +29,45 @@ import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.clustering.RadiusMarkerClusterer;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.KmlFeature;
+import org.osmdroid.bonuspack.kml.KmlFolder;
+import org.osmdroid.bonuspack.kml.KmlGeometry;
+import org.osmdroid.bonuspack.kml.KmlLineString;
 import org.osmdroid.bonuspack.kml.KmlPlacemark;
 import org.osmdroid.bonuspack.kml.KmlPoint;
+import org.osmdroid.bonuspack.kml.KmlPolygon;
+import org.osmdroid.bonuspack.kml.Style;
+import org.osmdroid.bonuspack.overlays.FolderOverlay;
 import org.osmdroid.bonuspack.overlays.Marker;
+import org.osmdroid.bonuspack.overlays.Polygon;
+import org.osmdroid.bonuspack.overlays.Polyline;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
 import org.osmdroid.views.overlay.compass.CompassOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
+import org.osmdroid.views.overlay.mylocation.IMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
+import org.osmdroid.views.util.constants.MapViewConstants;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.TimeZone;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.StringTokenizer;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final static String TAG = "IREDOViewerMap";
+    private final static String mLogTag = "IREDOViewerMap";
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
 
     MapView map;
     MyLocationNewOverlay myLocationOverlay = null;
-    RadiusMarkerClusterer vehiclesOverlay = null;
-    private static int MYLOCATION_OVERLAY_INDEX = 1;
-    private static int VEHICLES_OVERLAY_INDEX = 2;
     GpsMyLocationProvider locationProvider = null;
 
     private LocationManager mLocMgr;
-    private Timer reloadDataTimer;
-    private static int MAP_UPDATE_INTERVAL_MS = 10000;
-
-    private ProgressDialog progress = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
             MapInit();
         } else {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                Toast.makeText(this, getResources().getString(R.string.perm_write_cache), Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Persmission is needed to write map cache", Toast.LENGTH_LONG).show();
             }
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }
@@ -92,6 +94,8 @@ public class MainActivity extends AppCompatActivity {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
+
+        LoadMarkers();
     }
 
     @Override
@@ -103,14 +107,14 @@ public class MainActivity extends AppCompatActivity {
                         if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                             MapInit();
                         } else {
-                            Toast.makeText(this, getResources().getString(R.string.perm_not_granted), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
                         }
                         break;
                     case 2:
                         if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                             LocateMe();
                         } else {
-                            Toast.makeText(this, getResources().getString(R.string.perm_not_granted), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
                         }
                         break;
                     default:
@@ -118,7 +122,7 @@ public class MainActivity extends AppCompatActivity {
                         break;
                 }
             } catch (SecurityException e) {
-                Log.e(TAG, e.getLocalizedMessage(), e);
+                Log.e(mLogTag, e.getLocalizedMessage(), e);
             }
     }
 
@@ -155,19 +159,7 @@ public class MainActivity extends AppCompatActivity {
         myLocationOverlay.disableFollowLocation();
         myLocationOverlay.enableMyLocation();
 
-        map.getOverlays().add(MYLOCATION_OVERLAY_INDEX, myLocationOverlay);
-
-        //Init vehicles overlay
-        vehiclesOverlay = new RadiusMarkerClusterer(getApplication());
-        Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
-        Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
-        vehiclesOverlay.setIcon(clusterIcon);
-        vehiclesOverlay.getTextPaint().setTextSize(32.0f);
-        vehiclesOverlay.getTextPaint().setFakeBoldText(true);
-        vehiclesOverlay.getTextPaint().setColor(Color.DKGRAY);
-
-        map.getOverlays().add(VEHICLES_OVERLAY_INDEX, vehiclesOverlay);
-
+        map.getOverlays().add(myLocationOverlay);
         map.postInvalidate();
 
         ImageButton gotoLocationButton = (ImageButton) findViewById(R.id.map_goto_location);
@@ -178,24 +170,10 @@ public class MainActivity extends AppCompatActivity {
                 LocateMe();
             }
         });
-
-        progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
-                getResources().getString(R.string.data_loading_message), true);
-
-        LoadMarkers();
-
-        reloadDataTimer = new Timer();
-        reloadDataTimer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                LoadMarkers();
-            }
-
-        }, 0, MAP_UPDATE_INTERVAL_MS);
     }
 
     /**
-     * Load markers of buses and trains to the map
+     * Load markers to the map
      */
     private void LoadMarkers() {
         DownloadGeoJsonFile downloadSpojeGeoJsonFile = new DownloadGeoJsonFile(1);
@@ -216,7 +194,6 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected String doInBackground(String... params) {
             try {
-                Log.d(TAG, "Data loading...");
                 URL url = new URL(params[0]);
                 // Open a stream from the URL
                 InputStream stream = url.openStream();
@@ -233,10 +210,10 @@ public class MainActivity extends AppCompatActivity {
                 // Close the stream
                 reader.close();
                 stream.close();
-                Log.d(TAG, "Loading finished");
+
                 return result.toString();
             } catch (IOException e) {
-                Log.e(TAG, "GeoJSON file could not be read");
+                Log.e(mLogTag, "GeoJSON file could not be read");
             }
             return null;
         }
@@ -249,32 +226,30 @@ public class MainActivity extends AppCompatActivity {
                         KmlDocument kmlDocument = new KmlDocument();
                         kmlDocument.parseGeoJSON(jsonString);
 
-                        vehiclesOverlay.getItems().clear();
-                        vehiclesOverlay.invalidate();
-                        if (kmlDocument != null) {
-                            vehiclesOverlay.getItems().clear();
+                        //Marker Clustering
+                        RadiusMarkerClusterer clusteredOverlay = new RadiusMarkerClusterer(getApplication());
+                        Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
+                        Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
+                        clusteredOverlay.setIcon(clusterIcon);
+                        clusteredOverlay.getTextPaint().setTextSize(32.0f);
+                        clusteredOverlay.getTextPaint().setFakeBoldText(true);
+                        clusteredOverlay.getTextPaint().setColor(Color.DKGRAY);
 
+                        Drawable busMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.bus);
+                        Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.rail);
+
+                        if (kmlDocument != null) {
                             for (KmlFeature feature : kmlDocument.mKmlRoot.mItems) {
                                 if (feature.hasGeometry(KmlPoint.class)) {
-                                    final KmlFeature feature1 = feature;
-                                    final Marker marker = new Marker(map);
+                                    Marker marker = new Marker(map);
                                     KmlPlacemark placemark = (KmlPlacemark) feature;
                                     KmlPoint geometry = (KmlPoint) placemark.mGeometry;
                                     marker.setPosition(geometry.getPosition());
 
                                     String fromTo = feature.getExtendedData("dep_time") + " " + feature.getExtendedData("dep");
-                                    fromTo = fromTo + "<br>" + feature.getExtendedData("dest_time") + " " + feature.getExtendedData("dest");
+                                    fromTo = fromTo + " - " + feature.getExtendedData("dest_time") + " " + feature.getExtendedData("dest");
                                     marker.setSnippet(fromTo);
-
-                                    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-                                    format.setTimeZone(TimeZone.getTimeZone("UTC"));
-                                    try {
-                                        Date date = format.parse(feature.getExtendedData("time"));
-                                        marker.setSubDescription(getResources().getString(R.string.tooltip_state) + " " + new SimpleDateFormat("dd.MM. HH:mm:ss").format(date));
-                                    } catch (ParseException e) {
-                                        Log.e(TAG, e.getLocalizedMessage(), e);
-                                        marker.setSubDescription(feature.getExtendedData("time"));
-                                    }
+                                    marker.setSubDescription(feature.getExtendedData("time"));
                                     marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
                                     //marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM); //for pins
 
@@ -288,18 +263,26 @@ public class MainActivity extends AppCompatActivity {
                                         marker.setIcon(writeOnDrawable(R.drawable.rail48x48, textToIcon));
                                     }
 
+                                    //marker.setInfoWindow(new CustomInfoWindow(map));
                                     marker.setRelatedObject(feature);
-                                    vehiclesOverlay.add(marker);
+                                    clusteredOverlay.add(marker);
                                 }
                             }
                         }
 
+                        map.getOverlays().add(clusteredOverlay);
                         map.invalidate();
-                        Log.d(TAG, "Map updated");
+                        break;
+
+                    case 2:
+                        KmlDocument stationsDocument = new KmlDocument();
+                        stationsDocument.parseGeoJSON(jsonString);
+                        KmlFeature.Styler styler = new MyStyler(stationsDocument);
+                        FolderOverlay stationsOverlay = (FolderOverlay) stationsDocument.mKmlRoot.buildOverlay(map, null, styler, stationsDocument);
+                        map.getOverlays().add(stationsOverlay);
                         break;
                 }
             }
-            if (progress != null) progress.dismiss();
         }
     }
 
@@ -322,15 +305,75 @@ public class MainActivity extends AppCompatActivity {
         if (originalIcon.getWidth() < textLength) {
             Bitmap newBitmap = Bitmap.createBitmap(Math.round(textLength), originalIcon.getHeight(), Bitmap.Config.ARGB_8888);
             Canvas canvas = new Canvas(newBitmap);
-            canvas.drawBitmap(originalIcon, (newBitmap.getWidth() - originalIcon.getWidth()) / 2, 0, null);
+            canvas.drawBitmap(originalIcon,(newBitmap.getWidth() - originalIcon.getWidth()) / 2, 0, null);
             canvas.drawText(text, 0, originalIcon.getHeight() / 2, paint);
 
             return new BitmapDrawable(getResources(), newBitmap);
-        } else {
+        } else
+        {
             Canvas canvas = new Canvas(originalIcon);
-            canvas.drawText(text, (originalIcon.getWidth() - textLength) / 2, originalIcon.getHeight() / 2, paint);
+            canvas.drawText(text, (originalIcon.getWidth() - textLength) /2, originalIcon.getHeight() / 2, paint);
 
             return new BitmapDrawable(getResources(), originalIcon);
+        }
+    }
+
+    /**
+     * Styler calss for buses and trains
+     */
+    private class MyStyler implements KmlFeature.Styler {
+
+        KmlDocument mKmlDocument;
+
+        Drawable busMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.bus);
+        Bitmap busBitmap = ((BitmapDrawable) busMarker).getBitmap();
+        Style busStyle = new Style(busBitmap, 0x901010AA, 3.0f, 0x20AA1010);
+
+        Drawable trainMarker = ContextCompat.getDrawable(getBaseContext(), R.drawable.rail);
+        Bitmap trainBitmap = ((BitmapDrawable) trainMarker).getBitmap();
+        Style trainStyle = new Style(trainBitmap, 0x901010AA, 3.0f, 0x20AA1010);
+
+
+        public MyStyler(KmlDocument mKmlDocument) {
+            this.mKmlDocument = mKmlDocument;
+
+            mKmlDocument.putStyle("bus_style", new Style(busBitmap, 0x901010AA, 3.0f, 0x2010AA10));
+            mKmlDocument.putStyle("train_style", new Style(trainBitmap, 0x901010AA, 3.0f, 0x2010AA10));
+        }
+
+        @Override
+        public void onFeature(Overlay overlay, KmlFeature kmlFeature) {
+        }
+
+        @Override
+        public void onPoint(Marker marker, KmlPlacemark kmlPlacemark, KmlPoint kmlPoint) {
+
+            String fromTo = kmlPlacemark.getExtendedData("dep_time") + " " + kmlPlacemark.getExtendedData("dep");
+            fromTo = fromTo + " - " + kmlPlacemark.getExtendedData("dest_time") + " " + kmlPlacemark.getExtendedData("dest");
+            marker.setSnippet(fromTo);
+            marker.setSubDescription(kmlPlacemark.getExtendedData("time"));
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
+            //marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM); //for pins
+
+            if ("b".equals(kmlPlacemark.getExtendedData("type"))) {
+                String title = "Bus " + kmlPlacemark.getExtendedData("line_number") + " / " + kmlPlacemark.getExtendedData("service_number");
+                marker.setTitle(title);
+                marker.setIcon(busMarker);
+                //kmlPlacemark.mStyle = "bus_style";
+                //kmlPoint.applyDefaultStyling(marker, busStyle, kmlPlacemark, mKmlDocument, map);
+            } else {
+                marker.setIcon(trainMarker);
+                //kmlPlacemark.mStyle = "train_style";
+                //kmlPoint.applyDefaultStyling(marker, trainStyle, kmlPlacemark, mKmlDocument, map);
+            }
+        }
+
+        @Override
+        public void onLineString(Polyline polyline, KmlPlacemark kmlPlacemark, KmlLineString kmlLineString) {
+        }
+
+        @Override
+        public void onPolygon(Polygon polygon, KmlPlacemark kmlPlacemark, KmlPolygon kmlPolygon) {
         }
     }
 
@@ -343,7 +386,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 lastKnownLocation = locationProvider.getLastKnownLocation();
             } catch (SecurityException e) {
-                Log.e(TAG, e.getLocalizedMessage(), e);
+                Log.e(mLogTag, e.getLocalizedMessage(), e);
             }
         if (lastKnownLocation != null) {
             int lat = (int) (lastKnownLocation.getLatitude() * 1E6);
