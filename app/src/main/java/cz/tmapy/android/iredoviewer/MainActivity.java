@@ -18,7 +18,10 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.osmdroid.api.IMapController;
@@ -31,7 +34,9 @@ import org.osmdroid.bonuspack.kml.KmlPoint;
 import org.osmdroid.bonuspack.kml.KmlPolygon;
 import org.osmdroid.bonuspack.kml.Style;
 import org.osmdroid.bonuspack.overlays.FolderOverlay;
+import org.osmdroid.bonuspack.overlays.InfoWindow;
 import org.osmdroid.bonuspack.overlays.Marker;
+import org.osmdroid.bonuspack.overlays.MarkerInfoWindow;
 import org.osmdroid.bonuspack.overlays.Polygon;
 import org.osmdroid.bonuspack.overlays.Polyline;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
@@ -48,6 +53,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -166,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
         myLocationOverlay.disableFollowLocation();
         myLocationOverlay.enableMyLocation();
 
-        map.getOverlays().add(MYLOCATION_OVERLAY_INDEX,myLocationOverlay);
+        map.getOverlays().add(MYLOCATION_OVERLAY_INDEX, myLocationOverlay);
 
         //Init vehicles overlay
         vehiclesOverlay = new RadiusMarkerClusterer(getApplication());
@@ -189,8 +199,8 @@ public class MainActivity extends AppCompatActivity {
                 LocateMe();
             }
         });
-    }
 
+    }
     /**
      * Load markers of buses and trains to the map
      */
@@ -250,17 +260,28 @@ public class MainActivity extends AppCompatActivity {
                         vehiclesOverlay.invalidate();
                         if (kmlDocument != null) {
                             vehiclesOverlay.getItems().clear();
+
                             for (KmlFeature feature : kmlDocument.mKmlRoot.mItems) {
                                 if (feature.hasGeometry(KmlPoint.class)) {
-                                    Marker marker = new Marker(map);
+                                    final KmlFeature feature1 = feature;
+                                    final Marker marker = new Marker(map);
                                     KmlPlacemark placemark = (KmlPlacemark) feature;
                                     KmlPoint geometry = (KmlPoint) placemark.mGeometry;
                                     marker.setPosition(geometry.getPosition());
 
                                     String fromTo = feature.getExtendedData("dep_time") + " " + feature.getExtendedData("dep");
-                                    fromTo = fromTo + " - " + feature.getExtendedData("dest_time") + " " + feature.getExtendedData("dest");
+                                    fromTo = fromTo + "<br>" + feature.getExtendedData("dest_time") + " " + feature.getExtendedData("dest");
                                     marker.setSnippet(fromTo);
-                                    marker.setSubDescription(feature.getExtendedData("time"));
+
+                                    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                                    format.setTimeZone(TimeZone.getTimeZone("UTC"));
+                                    try {
+                                        Date date = format.parse(feature.getExtendedData("time"));
+                                        marker.setSubDescription("Stav k: " + new SimpleDateFormat("dd.MM. HH:mm:ss").format(date));
+                                    } catch (ParseException e) {
+                                        Log.e(TAG,e.getLocalizedMessage(),e);
+                                        marker.setSubDescription(feature.getExtendedData("time"));
+                                    }
                                     marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
                                     //marker.setAnchor(Marker.ANCHOR_LEFT, Marker.ANCHOR_BOTTOM); //for pins
 
@@ -274,7 +295,6 @@ public class MainActivity extends AppCompatActivity {
                                         marker.setIcon(writeOnDrawable(R.drawable.rail48x48, textToIcon));
                                     }
 
-                                    //marker.setInfoWindow(new CustomInfoWindow(map));
                                     marker.setRelatedObject(feature);
                                     vehiclesOverlay.add(marker);
                                 }
