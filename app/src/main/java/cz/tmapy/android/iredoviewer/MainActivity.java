@@ -18,6 +18,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageButton;
@@ -76,6 +77,8 @@ public class MainActivity extends AppCompatActivity {
     private LocationManager mLocMgr;
     private Timer reloadDataTimer;
     private static int MAP_UPDATE_INTERVAL_MS = 10000;
+
+    private static int TEXT_SIZE_DIP = 12; //size of text over icons
 
     private ProgressDialog progress = null;
     @Override
@@ -174,7 +177,8 @@ public class MainActivity extends AppCompatActivity {
         Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
         Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
         vehiclesOverlay.setIcon(clusterIcon);
-        vehiclesOverlay.getTextPaint().setTextSize(28);
+        vehiclesOverlay.getTextPaint().setTextSize((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
+                TEXT_SIZE_DIP, getResources().getDisplayMetrics()));
         vehiclesOverlay.getTextPaint().setFakeBoldText(true);
         vehiclesOverlay.getTextPaint().setColor(Color.DKGRAY);
 
@@ -325,7 +329,7 @@ public class MainActivity extends AppCompatActivity {
         Bitmap originalIcon = BitmapFactory.decodeResource(getResources(), drawableId).copy(Bitmap.Config.ARGB_8888, true);
 
         Paint paint = new Paint();
-        paint.setTextSize(28);
+        paint.setTextSize((int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, TEXT_SIZE_DIP, getResources().getDisplayMetrics())); //http://stackoverflow.com/questions/3061930/how-to-set-unit-for-paint-settextsize
         paint.setColor(Color.BLACK);
         float textLength = paint.measureText(text);
 
