@@ -7,5 +7,5 @@ Data jsou získávána ze služeb [veřejné webové aplikace IREDO](http://tabu
 Při spuštění zjistí aktuální polohy vozidel a vykreslí je v mapě, kterou postupně aktualizuje. Po kliknutí na vozidlo se zobrazí podrobnější informace. Na ikoně každého z vozidel se zobrazuje cílové město, kam spoj míří.
 
 ## Instalace
-- Pro instalaci si v telefonu [povolte instalaci aplikací z neznámých zdrojů](http://www.androidcentral.com/allow-app-installs-unknown-sources). V nastavení, ve menu Zabezpečení zaškrtněne "Neznámé zdroje"
+- Pro instalaci si v telefonu [povolte instalaci aplikací z neznámých zdrojů](http://www.androidcentral.com/allow-app-installs-unknown-sources). V nastavení, v menu *Zabezpečení* zaškrtněne *Neznámé zdroje*
 - Stáhněte si [APK balíček](https://github.com/T-MAPY/IREDOViewer/releases) přímo z prohlížeče v telefonu a po dokončení stahování jej spusťte.
