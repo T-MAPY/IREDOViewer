@@ -328,7 +328,7 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
 
-                        if (mVehiclesTextView != null) mVehiclesTextView.setText(String.valueOf(vehiclesOverlay.getItems().size()) + " vozidel");
+                        if (mVehiclesTextView != null) mVehiclesTextView.setText(String.valueOf(vehiclesOverlay.getItems().size()) + " " + getResources().getString(R.string.map_vehicles));
 
                         map.invalidate();
                         Log.d(TAG, "Map updated");
