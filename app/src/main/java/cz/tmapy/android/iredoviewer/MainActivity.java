@@ -83,6 +83,8 @@ public class MainActivity extends AppCompatActivity {
     private static int TEXT_SIZE_DIP = 12; //size of text over icons
 
     private ProgressDialog progress = null;
+    private TextView mVehiclesTextView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -161,6 +163,7 @@ public class MainActivity extends AppCompatActivity {
         mapController.setZoom(15);
         mapController.setCenter(startPoint);
 
+        mVehiclesTextView = (TextView) findViewById(R.id.map_vehicles_count);
         //Add Scale Bar
         ScaleBarOverlay myScaleBarOverlay = new ScaleBarOverlay(this);
         map.getOverlays().add(myScaleBarOverlay);
@@ -317,6 +320,8 @@ public class MainActivity extends AppCompatActivity {
                                 }
                             }
                         }
+
+                        if (mVehiclesTextView != null) mVehiclesTextView.setText(String.valueOf(vehiclesOverlay.getItems().size()) + " vozidel");
 
                         map.invalidate();
                         Log.d(TAG, "Map updated");
