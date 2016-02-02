@@ -2,7 +2,9 @@ package cz.tmapy.android.iredoviewer;
 
 import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -12,17 +14,29 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Handler;
+import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.view.MenuItemCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.SwitchCompat;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,24 +44,14 @@ import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.clustering.RadiusMarkerClusterer;
 import org.osmdroid.bonuspack.kml.KmlDocument;
 import org.osmdroid.bonuspack.kml.KmlFeature;
-import org.osmdroid.bonuspack.kml.KmlLineString;
 import org.osmdroid.bonuspack.kml.KmlPlacemark;
 import org.osmdroid.bonuspack.kml.KmlPoint;
-import org.osmdroid.bonuspack.kml.KmlPolygon;
-import org.osmdroid.bonuspack.kml.Style;
-import org.osmdroid.bonuspack.overlays.FolderOverlay;
-import org.osmdroid.bonuspack.overlays.InfoWindow;
 import org.osmdroid.bonuspack.overlays.Marker;
-import org.osmdroid.bonuspack.overlays.MarkerInfoWindow;
-import org.osmdroid.bonuspack.overlays.Polygon;
-import org.osmdroid.bonuspack.overlays.Polyline;
 import org.osmdroid.tileprovider.MapTile;
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
-import org.osmdroid.views.overlay.MinimapOverlay;
-import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
 import org.osmdroid.views.overlay.compass.CompassOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
@@ -70,6 +74,12 @@ public class MainActivity extends AppCompatActivity {
     private final static String TAG = "IREDOViewerMap";
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
 
+    //https://guides.codepath.com/android/Fragment-Navigation-Drawer
+    private DrawerLayout mDrawer;
+    private Toolbar toolbar;
+    private NavigationView nvDrawer;
+    private ActionBarDrawerToggle drawerToggle;
+
     MapView map;
     MyLocationNewOverlay myLocationOverlay = null;
     RadiusMarkerClusterer vehiclesOverlay = null;
@@ -89,6 +99,43 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Set a Toolbar to replace the ActionBar. In order to slide our navigation drawer over the ActionBar,
+        // we need to use the new Toolbar widget as defined in the AppCompat v21 library.
+        // The Toolbar can be embedded into your view hierarchy
+        // which makes sure that the drawer slides over the ActionBar.
+        toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+
+        // Find our drawer view
+        mDrawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        // Find our drawer view
+        nvDrawer = (NavigationView) findViewById(R.id.nvView);
+        // Setup drawer view
+        setupDrawerContent(nvDrawer);
+
+        drawerToggle = new ActionBarDrawerToggle(this, mDrawer, toolbar, R.string.drawer_open, R.string.drawer_close);
+        // Tie DrawerLayout events to the ActionBarToggle
+        mDrawer.setDrawerListener(drawerToggle);
+
+        // Setup listener for checkbox
+        Menu menu = nvDrawer.getMenu();
+        MenuItem menuItem = menu.findItem(R.id.reload_menu_item);
+        LinearLayout linearLayout= (LinearLayout) MenuItemCompat.getActionView(menuItem);
+        SwitchCompat switchCompat = (SwitchCompat) linearLayout.findViewById(R.id.reload_switch);
+        switchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked)
+                {
+                    ScheduleLoadMarkers();
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_enabled), Toast.LENGTH_SHORT).show();
+                }else
+                {
+                    if (reloadDataTimer != null) reloadDataTimer.cancel();
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_disabled), Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
 
         //INIT MAP
         if (android.os.Build.VERSION.SDK_INT < 23) {
@@ -111,6 +158,70 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
 
+    }
+
+    /**
+     * Nastavení reakcí na nabídky v navigation drawer
+     * @param navigationView
+     */
+    private void setupDrawerContent(NavigationView navigationView) {
+        navigationView.setNavigationItemSelectedListener(
+                new NavigationView.OnNavigationItemSelectedListener() {
+                    @Override
+                    public boolean onNavigationItemSelected(MenuItem menuItem) {
+                        switch (menuItem.getItemId()) {
+                            case R.id.nav_tm_osm:
+                                map.setTileSource(new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
+                                        new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
+                                    @Override
+                                    public String getTileURLString(MapTile aTile) {
+                                        return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
+                                                + mImageFilenameEnding;
+                                    }
+                                });
+                                Toast.makeText(MainActivity.this, "T-MAPY OSM", Toast.LENGTH_SHORT).show();
+                                break;
+                            case R.id.nav_mapnik:
+                                map.setTileSource(TileSourceFactory.MAPQUESTOSM);
+                                Toast.makeText(MainActivity.this, "Mapquest", Toast.LENGTH_SHORT).show();
+                                break;
+                            case R.id.github_item:
+                                Uri uri = Uri.parse("https://github.com/T-MAPY/IREDOViewer");
+                                startActivity( new Intent( Intent.ACTION_VIEW, uri ) );
+                                break;
+                            default:
+                                //Toast.makeText(MainActivity.this, "not implemented", Toast.LENGTH_SHORT).show();
+                        }
+
+                        // Highlight the selected item, update the title, and close the drawer
+                        menuItem.setChecked(true);
+                        //setTitle(menuItem.getTitle());
+                        mDrawer.closeDrawers();
+                        return true;
+                    }
+                });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (drawerToggle.onOptionsItemSelected(item)) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onPostCreate(Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        // Sync the toggle state after onRestoreInstanceState has occurred.
+        drawerToggle.syncState();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Pass any configuration change to the drawer toggles
+        drawerToggle.onConfigurationChanged(newConfig);
     }
 
     @Override
@@ -217,7 +328,15 @@ public class MainActivity extends AppCompatActivity {
 
         progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
                 getResources().getString(R.string.data_loading_message), true);
-        LoadMarkers();
+        ScheduleLoadMarkers();
+    }
+
+    /**
+     * Schedules timer for data reloading
+     */
+    private void ScheduleLoadMarkers() {
+        if (reloadDataTimer != null) //to prevent schedule timer multipletimes
+            reloadDataTimer.cancel();
 
         reloadDataTimer = new Timer();
         reloadDataTimer.schedule(new TimerTask() {
@@ -228,6 +347,7 @@ public class MainActivity extends AppCompatActivity {
 
         }, 0, MAP_UPDATE_INTERVAL_MS);
     }
+
     /**
      * Load markers of buses and trains to the map
      */
@@ -250,7 +370,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected String doInBackground(String... params) {
             try {
-                Log.d(TAG,"Data loading...");
+                Log.d(TAG, "Data loading...");
                 URL url = new URL(params[0]);
                 // Open a stream from the URL
                 InputStream stream = url.openStream();
@@ -267,7 +387,7 @@ public class MainActivity extends AppCompatActivity {
                 // Close the stream
                 reader.close();
                 stream.close();
-                Log.d(TAG,"Loading finished");
+                Log.d(TAG, "Loading finished");
                 return result.toString();
             } catch (IOException e) {
                 Log.e(TAG, "GeoJSON file could not be read");
@@ -306,7 +426,7 @@ public class MainActivity extends AppCompatActivity {
                                         Date date = format.parse(feature.getExtendedData("time"));
                                         marker.setSubDescription(getResources().getString(R.string.tooltip_state) + " " + new SimpleDateFormat("dd.MM. HH:mm:ss").format(date));
                                     } catch (ParseException e) {
-                                        Log.e(TAG,e.getLocalizedMessage(),e);
+                                        Log.e(TAG, e.getLocalizedMessage(), e);
                                         marker.setSubDescription(feature.getExtendedData("time"));
                                     }
                                     marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER);
@@ -328,7 +448,8 @@ public class MainActivity extends AppCompatActivity {
                             }
                         }
 
-                        if (mVehiclesTextView != null) mVehiclesTextView.setText(String.valueOf(vehiclesOverlay.getItems().size()) + " " + getResources().getString(R.string.map_vehicles));
+                        if (mVehiclesTextView != null)
+                            mVehiclesTextView.setText(String.valueOf(vehiclesOverlay.getItems().size()) + " " + getResources().getString(R.string.map_vehicles));
 
                         map.invalidate();
                         Log.d(TAG, "Map updated");
@@ -390,14 +511,17 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
+    protected void onStop(){
+        super.onStop();
         if (myLocationOverlay != null) myLocationOverlay.enableMyLocation();
+        if (reloadDataTimer != null) reloadDataTimer.cancel();
     }
 
     @Override
-    protected void onPause() {
-        super.onPause();
+    protected void onRestart()
+    {
+        super.onRestart();
         if (myLocationOverlay != null) myLocationOverlay.disableMyLocation();
+        ScheduleLoadMarkers();
     }
 }
