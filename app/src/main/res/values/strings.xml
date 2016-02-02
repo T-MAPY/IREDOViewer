@@ -6,4 +6,6 @@
     <string name="perm_write_cache">Persmission is needed to write map cache</string>
     <string name="tooltip_state">State time:</string>
     <string name="map_vehicles">vehicles</string>
+    <string name="drawer_open">Open navigation drawer</string>
+    <string name="drawer_close">Close navigation drawer</string>
 </resources>
