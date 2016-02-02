@@ -144,10 +144,9 @@ public class MainActivity extends AppCompatActivity {
      */
     private void MapInit() {
         map = (MapView) findViewById(R.id.map);
-        map.setTileSource(TileSourceFactory.MAPQUESTOSM);
         map.setBuiltInZoomControls(true);
         map.setMultiTouchControls(true);
-
+        //map.setTileSource(TileSourceFactory.MAPQUESTOSM);
         map.setTileSource(new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
                 new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
             @Override
