@@ -8,4 +8,4 @@ Při spuštění zjistí aktuální polohy vozidel a vykreslí je v mapě, ktero
 
 ## Instalace
 - Pro instalaci si v telefonu [povolte instalaci aplikací z neznámých zdrojů](http://www.androidcentral.com/allow-app-installs-unknown-sources). V nastavení, ve menu Zabezpečení zaškrtněne "Neznámé zdroje"
-- Stáhněte si [APK balížek](https://github.com/T-MAPY/IREDOViewer/releases) přímo z prohlížeče v telefonu a po dokončení stahování jej spusťte.
+- Stáhněte si [APK balíček](https://github.com/T-MAPY/IREDOViewer/releases) přímo z prohlížeče v telefonu a po dokončení stahování jej spusťte.
