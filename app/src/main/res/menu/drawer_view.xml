@@ -18,12 +18,10 @@
             android:id="@+id/reload_menu_item"
             android:title="@string/menu_autorefresh"
             android:checkable="false"
-            app:showAsAction="ifRoom"
             app:actionLayout="@layout/action_view_reload_switch" />
         <item
             android:id="@+id/github_item"
             android:checkable="false"
-            app:showAsAction="never"
-            android:title="GitHub Home Page"/>
+            android:title="@string/menu_github"/>
     </group>
 </menu>

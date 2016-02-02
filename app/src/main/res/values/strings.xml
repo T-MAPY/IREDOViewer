@@ -12,4 +12,5 @@
     <string name="menu_autorefresh">Auto-refersh</string>
     <string name="menu_reloading_enabled">Reloading enabled</string>
     <string name="menu_reloading_disabled">Reloading disabled</string>
+    <string name="menu_github">GitHub Home Page</string>
 </resources>
