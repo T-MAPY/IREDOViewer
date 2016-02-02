@@ -2,6 +2,7 @@ package cz.tmapy.android.iredoviewer;
 
 import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -13,22 +14,29 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Handler;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.view.GravityCompat;
+import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.SwitchCompat;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.util.TypedValue;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.CompoundButton;
 import android.widget.ImageButton;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,6 +49,7 @@ import org.osmdroid.bonuspack.kml.KmlPoint;
 import org.osmdroid.bonuspack.overlays.Marker;
 import org.osmdroid.tileprovider.MapTile;
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
@@ -65,10 +74,11 @@ public class MainActivity extends AppCompatActivity {
     private final static String TAG = "IREDOViewerMap";
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
 
+    //https://guides.codepath.com/android/Fragment-Navigation-Drawer
     private DrawerLayout mDrawer;
     private Toolbar toolbar;
     private NavigationView nvDrawer;
-    ActionBarDrawerToggle drawerToggle;
+    private ActionBarDrawerToggle drawerToggle;
 
     MapView map;
     MyLocationNewOverlay myLocationOverlay = null;
@@ -90,7 +100,10 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Set a Toolbar to replace the ActionBar.
+        // Set a Toolbar to replace the ActionBar. In order to slide our navigation drawer over the ActionBar,
+        // we need to use the new Toolbar widget as defined in the AppCompat v21 library.
+        // The Toolbar can be embedded into your view hierarchy
+        // which makes sure that the drawer slides over the ActionBar.
         toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -104,6 +117,25 @@ public class MainActivity extends AppCompatActivity {
         drawerToggle = new ActionBarDrawerToggle(this, mDrawer, toolbar, R.string.drawer_open, R.string.drawer_close);
         // Tie DrawerLayout events to the ActionBarToggle
         mDrawer.setDrawerListener(drawerToggle);
+
+        // Setup listener for checkbox
+        Menu menu = nvDrawer.getMenu();
+        MenuItem menuItem = menu.findItem(R.id.reload_menu_item);
+        LinearLayout linearLayout= (LinearLayout) MenuItemCompat.getActionView(menuItem);
+        SwitchCompat switchCompat = (SwitchCompat) linearLayout.findViewById(R.id.reload_switch);
+        switchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked)
+                {
+                    ScheduleLoadMarkers();
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_enabled), Toast.LENGTH_SHORT).show();
+                }else
+                {
+                    if (reloadDataTimer != null) reloadDataTimer.cancel();
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_disabled), Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
 
         //INIT MAP
         if (android.os.Build.VERSION.SDK_INT < 23) {
@@ -128,6 +160,56 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    /**
+     * Nastavení reakcí na nabídky v navigation drawer
+     * @param navigationView
+     */
+    private void setupDrawerContent(NavigationView navigationView) {
+        navigationView.setNavigationItemSelectedListener(
+                new NavigationView.OnNavigationItemSelectedListener() {
+                    @Override
+                    public boolean onNavigationItemSelected(MenuItem menuItem) {
+                        switch (menuItem.getItemId()) {
+                            case R.id.nav_tm_osm:
+                                map.setTileSource(new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
+                                        new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
+                                    @Override
+                                    public String getTileURLString(MapTile aTile) {
+                                        return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
+                                                + mImageFilenameEnding;
+                                    }
+                                });
+                                Toast.makeText(MainActivity.this, "T-MAPY OSM", Toast.LENGTH_SHORT).show();
+                                break;
+                            case R.id.nav_mapnik:
+                                map.setTileSource(TileSourceFactory.MAPQUESTOSM);
+                                Toast.makeText(MainActivity.this, "Mapquest", Toast.LENGTH_SHORT).show();
+                                break;
+                            case R.id.github_item:
+                                Uri uri = Uri.parse("https://github.com/T-MAPY/IREDOViewer");
+                                startActivity( new Intent( Intent.ACTION_VIEW, uri ) );
+                                break;
+                            default:
+                                //Toast.makeText(MainActivity.this, "not implemented", Toast.LENGTH_SHORT).show();
+                        }
+
+                        // Highlight the selected item, update the title, and close the drawer
+                        menuItem.setChecked(true);
+                        //setTitle(menuItem.getTitle());
+                        mDrawer.closeDrawers();
+                        return true;
+                    }
+                });
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (drawerToggle.onOptionsItemSelected(item)) {
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
         super.onPostCreate(savedInstanceState);
@@ -140,43 +222,6 @@ public class MainActivity extends AppCompatActivity {
         super.onConfigurationChanged(newConfig);
         // Pass any configuration change to the drawer toggles
         drawerToggle.onConfigurationChanged(newConfig);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // The action bar home/up action should open or close the drawer.
-        switch (item.getItemId()) {
-            case android.R.id.home:
-                mDrawer.openDrawer(GravityCompat.START);
-                return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void setupDrawerContent(NavigationView navigationView) {
-        navigationView.setNavigationItemSelectedListener(
-                new NavigationView.OnNavigationItemSelectedListener() {
-                    @Override
-                    public boolean onNavigationItemSelected(MenuItem menuItem) {
-                        switch (menuItem.getItemId()) {
-                            case R.id.nav_first_fragment:
-                                //fragmentClass = FirstFragment.class;
-                                break;
-                            case R.id.nav_second_fragment:
-                                //fragmentClass = SecondFragment.class;
-                                break;
-                            default:
-                                //fragmentClass = FirstFragment.class;
-                        }
-
-                        // Highlight the selected item, update the title, and close the drawer
-                        menuItem.setChecked(true);
-                        setTitle(menuItem.getTitle());
-                        mDrawer.closeDrawers();
-                        return true;
-                    }
-                });
     }
 
     @Override

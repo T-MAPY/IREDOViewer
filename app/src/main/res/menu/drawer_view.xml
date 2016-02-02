@@ -1,13 +1,29 @@
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <group android:checkableBehavior="single">
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <group
+            android:id="@+id/tilesGrp"
+            android:checkableBehavior="single">
+            <item
+                android:id="@+id/nav_tm_osm"
+                android:checked="true"
+                android:icon="@drawable/moreinfo_arrow"
+                android:title="T-MAPY OSM" />
+            <item
+                android:id="@+id/nav_mapnik"
+                android:icon="@drawable/moreinfo_arrow"
+                android:title="Mapquest" />
+        </group>
+    <group android:id="@+id/grp2" android:checkableBehavior="none" >
         <item
-            android:id="@+id/nav_first_fragment"
-            android:icon="@drawable/moreinfo_arrow"
-            android:title="First" />
+            android:id="@+id/reload_menu_item"
+            android:title="@string/menu_autorefresh"
+            android:checkable="false"
+            app:showAsAction="ifRoom"
+            app:actionLayout="@layout/action_view_reload_switch" />
         <item
-            android:id="@+id/nav_second_fragment"
-            android:icon="@drawable/moreinfo_arrow"
-            android:title="Second" />
+            android:id="@+id/github_item"
+            android:checkable="false"
+            app:showAsAction="never"
+            android:title="GitHub Home Page"/>
     </group>
 </menu>

@@ -8,4 +8,8 @@
     <string name="map_vehicles">vehicles</string>
     <string name="drawer_open">Open navigation drawer</string>
     <string name="drawer_close">Close navigation drawer</string>
+    <string name="menu_title">Main menu</string>
+    <string name="menu_autorefresh">Auto-refersh</string>
+    <string name="menu_reloading_enabled">Reloading enabled</string>
+    <string name="menu_reloading_disabled">Reloading disabled</string>
 </resources>
