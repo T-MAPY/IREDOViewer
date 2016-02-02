@@ -46,6 +46,7 @@ import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.MinimapOverlay;
 import org.osmdroid.views.overlay.Overlay;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
 import org.osmdroid.views.overlay.compass.CompassOverlay;
@@ -72,8 +73,7 @@ public class MainActivity extends AppCompatActivity {
     MapView map;
     MyLocationNewOverlay myLocationOverlay = null;
     RadiusMarkerClusterer vehiclesOverlay = null;
-    private static int MYLOCATION_OVERLAY_INDEX = 1;
-    private static int VEHICLES_OVERLAY_INDEX = 2;
+
     GpsMyLocationProvider locationProvider = null;
 
     private LocationManager mLocMgr;
@@ -164,26 +164,6 @@ public class MainActivity extends AppCompatActivity {
         mapController.setCenter(startPoint);
 
         mVehiclesTextView = (TextView) findViewById(R.id.map_vehicles_count);
-        //Add Scale Bar
-        ScaleBarOverlay myScaleBarOverlay = new ScaleBarOverlay(this);
-        map.getOverlays().add(myScaleBarOverlay);
-
-        CompassOverlay compassOverlay = new CompassOverlay(this, map);
-        compassOverlay.enableCompass();
-        map.getOverlays().add(compassOverlay);
-
-        //GpsMyLocationProvider can be replaced by your own class. It provides the position information through GPS or Cell towers.
-        locationProvider = new GpsMyLocationProvider(this.getBaseContext());
-        //minimum distance for update
-        locationProvider.setLocationUpdateMinDistance(100);
-        //minimum time for update
-        locationProvider.setLocationUpdateMinTime(30000);
-        myLocationOverlay = new MyLocationNewOverlay(this.getBaseContext(), locationProvider, map);
-        myLocationOverlay.setDrawAccuracyEnabled(true);
-        myLocationOverlay.disableFollowLocation();
-        myLocationOverlay.enableMyLocation();
-
-        map.getOverlays().add(MYLOCATION_OVERLAY_INDEX, myLocationOverlay);
 
         //Init vehicles overlay
         vehiclesOverlay = new RadiusMarkerClusterer(getApplication());
@@ -195,7 +175,34 @@ public class MainActivity extends AppCompatActivity {
         vehiclesOverlay.getTextPaint().setFakeBoldText(true);
         vehiclesOverlay.getTextPaint().setColor(Color.DKGRAY);
 
-        map.getOverlays().add(VEHICLES_OVERLAY_INDEX, vehiclesOverlay);
+        map.getOverlays().add(vehiclesOverlay);
+
+        //Add Scale Bar
+        ScaleBarOverlay myScaleBarOverlay = new ScaleBarOverlay(this);
+        map.getOverlays().add(myScaleBarOverlay);
+
+        //Add Compass
+        CompassOverlay compassOverlay = new CompassOverlay(this, map);
+        compassOverlay.enableCompass();
+        map.getOverlays().add(compassOverlay);
+
+        //Add Minimap
+        //MinimapOverlay minimapOverlay = new MinimapOverlay(getBaseContext(), map.getTileRequestCompleteHandler());
+        //minimapOverlay.setOptionsMenuEnabled(true);
+        //map.getOverlays().add(minimapOverlay);
+
+        //GpsMyLocationProvider can be replaced by your own class. It provides the position information through GPS or Cell towers.
+        locationProvider = new GpsMyLocationProvider(getBaseContext());
+        //minimum distance for update
+        locationProvider.setLocationUpdateMinDistance(100);
+        //minimum time for update
+        locationProvider.setLocationUpdateMinTime(30000);
+        myLocationOverlay = new MyLocationNewOverlay(getBaseContext(), locationProvider, map);
+        myLocationOverlay.setDrawAccuracyEnabled(true);
+        myLocationOverlay.disableFollowLocation();
+        myLocationOverlay.enableMyLocation();
+
+        map.getOverlays().add(myLocationOverlay);
 
         map.postInvalidate();
 
