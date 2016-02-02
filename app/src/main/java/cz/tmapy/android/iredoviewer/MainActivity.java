@@ -41,6 +41,8 @@ import org.osmdroid.bonuspack.overlays.Marker;
 import org.osmdroid.bonuspack.overlays.MarkerInfoWindow;
 import org.osmdroid.bonuspack.overlays.Polygon;
 import org.osmdroid.bonuspack.overlays.Polyline;
+import org.osmdroid.tileprovider.MapTile;
+import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
@@ -145,6 +147,15 @@ public class MainActivity extends AppCompatActivity {
         map.setTileSource(TileSourceFactory.MAPQUESTOSM);
         map.setBuiltInZoomControls(true);
         map.setMultiTouchControls(true);
+
+        map.setTileSource(new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
+                new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
+            @Override
+            public String getTileURLString(MapTile aTile) {
+                return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
+                        + mImageFilenameEnding;
+            }
+        });
 
         GeoPoint startPoint = new GeoPoint(50.215512, 15.811845);
         final IMapController mapController = map.getController();
