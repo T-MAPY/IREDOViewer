@@ -49,11 +49,14 @@ import org.osmdroid.bonuspack.kml.KmlPlacemark;
 import org.osmdroid.bonuspack.kml.KmlPoint;
 import org.osmdroid.bonuspack.overlays.Marker;
 import org.osmdroid.tileprovider.MapTile;
+import org.osmdroid.tileprovider.MapTileProviderBasic;
+import org.osmdroid.tileprovider.tilesource.ITileSource;
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
+import org.osmdroid.views.overlay.TilesOverlay;
 import org.osmdroid.views.overlay.compass.CompassOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
@@ -82,10 +85,12 @@ public class MainActivity extends AppCompatActivity {
     private ActionBarDrawerToggle drawerToggle;
 
     MapView map;
-    MyLocationNewOverlay myLocationOverlay = null;
-    RadiusMarkerClusterer vehiclesOverlay = null;
+    ITileSource tmapyOsmTiles;
+    TilesOverlay hillShade;
+    MyLocationNewOverlay myLocationOverlay;
+    RadiusMarkerClusterer vehiclesOverlay;
 
-    GpsMyLocationProvider locationProvider = null;
+    GpsMyLocationProvider locationProvider;
 
     private LocationManager mLocMgr;
     private Timer reloadDataTimer;
@@ -138,6 +143,15 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        tmapyOsmTiles = new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
+                new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
+            @Override
+            public String getTileURLString(MapTile aTile) {
+                return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
+                        + mImageFilenameEnding;
+            }
+        };
+
         //INIT MAP
         if (android.os.Build.VERSION.SDK_INT < 23) {
             MapInit();
@@ -172,19 +186,12 @@ public class MainActivity extends AppCompatActivity {
                     public boolean onNavigationItemSelected(MenuItem menuItem) {
                         switch (menuItem.getItemId()) {
                             case R.id.nav_tm_osm:
-                                map.setTileSource(new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
-                                        new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
-                                    @Override
-                                    public String getTileURLString(MapTile aTile) {
-                                        return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
-                                                + mImageFilenameEnding;
-                                    }
-                                });
+                                map.setTileSource(tmapyOsmTiles);
                                 Toast.makeText(MainActivity.this, "T-MAPY OSM", Toast.LENGTH_SHORT).show();
                                 break;
                             case R.id.nav_mapnik:
-                                map.setTileSource(TileSourceFactory.MAPQUESTOSM);
-                                Toast.makeText(MainActivity.this, "Mapquest", Toast.LENGTH_SHORT).show();
+                                map.setTileSource(TileSourceFactory.MAPNIK);
+                                Toast.makeText(MainActivity.this, "Mapnik", Toast.LENGTH_SHORT).show();
                                 break;
                             case R.id.github_item:
                                 Uri uri = Uri.parse("https://github.com/T-MAPY/IREDOViewer");
@@ -260,24 +267,29 @@ public class MainActivity extends AppCompatActivity {
         map = (MapView) findViewById(R.id.map);
         map.setBuiltInZoomControls(true);
         map.setMultiTouchControls(true);
-        //map.setTileSource(TileSourceFactory.MAPQUESTOSM);
-        map.setTileSource(new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
-                new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
-            @Override
-            public String getTileURLString(MapTile aTile) {
-                return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
-                        + mImageFilenameEnding;
-            }
-        });
+        map.setTileSource(tmapyOsmTiles);
 
         GeoPoint startPoint = new GeoPoint(50.215512, 15.811845);
         final IMapController mapController = map.getController();
         mapController.setZoom(15);
         mapController.setCenter(startPoint);
 
-        mVehiclesTextView = (TextView) findViewById(R.id.map_vehicles_count);
+        final MapTileProviderBasic tileProvider = new MapTileProviderBasic(getApplicationContext());
+        final ITileSource tileSource =  new OnlineTileSourceBase("T-MAPY HillShade", 0, 18, 256, "",
+                new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:hillshade&zoom="}) {
+            @Override
+            public String getTileURLString(MapTile aTile) {
+                return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
+                        + mImageFilenameEnding;
+            }
+        };
+        tileProvider.setTileSource(tileSource);
+        hillShade =  new TilesOverlay(tileProvider, this.getBaseContext());
+        hillShade.setLoadingBackgroundColor(Color.TRANSPARENT);
+        map.getOverlays().add(hillShade);
 
         //Init vehicles overlay
+        mVehiclesTextView = (TextView) findViewById(R.id.map_vehicles_count);
         vehiclesOverlay = new RadiusMarkerClusterer(getApplication());
         Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
         Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
@@ -286,7 +298,6 @@ public class MainActivity extends AppCompatActivity {
                 TEXT_SIZE_DIP, getResources().getDisplayMetrics()));
         vehiclesOverlay.getTextPaint().setFakeBoldText(true);
         vehiclesOverlay.getTextPaint().setColor(Color.DKGRAY);
-
         map.getOverlays().add(vehiclesOverlay);
 
         //Add Scale Bar
@@ -313,7 +324,6 @@ public class MainActivity extends AppCompatActivity {
         myLocationOverlay.setDrawAccuracyEnabled(true);
         myLocationOverlay.disableFollowLocation();
         myLocationOverlay.enableMyLocation();
-
         map.getOverlays().add(myLocationOverlay);
 
         map.postInvalidate();
