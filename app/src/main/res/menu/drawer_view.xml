@@ -7,11 +7,11 @@
                 android:id="@+id/nav_tm_osm"
                 android:checked="true"
                 android:icon="@drawable/moreinfo_arrow"
-                android:title="T-MAPY OSM" />
+                android:title="OSM T-MAPY" />
             <item
                 android:id="@+id/nav_mapnik"
                 android:icon="@drawable/moreinfo_arrow"
-                android:title="Mapquest" />
+                android:title="OSM Mapnik" />
         </group>
     <group android:id="@+id/grp2" android:checkableBehavior="none" >
         <item
