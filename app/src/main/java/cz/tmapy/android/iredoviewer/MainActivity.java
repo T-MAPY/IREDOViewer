@@ -2,7 +2,11 @@ package cz.tmapy.android.iredoviewer;
 
 import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -17,9 +21,11 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.GravityCompat;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
@@ -37,6 +43,7 @@ import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -73,6 +80,10 @@ import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import cz.tmapy.android.iredoviewer.gcm.GcmRegistrationService;
+import cz.tmapy.android.iredoviewer.gcm.PlayServicesTools;
+import cz.tmapy.android.iredoviewer.gcm.QuickstartPreferences;
+
 public class MainActivity extends AppCompatActivity {
 
     private final static String TAG = "IREDOViewerMap";
@@ -100,6 +111,8 @@ public class MainActivity extends AppCompatActivity {
 
     private ProgressDialog progress = null;
     private TextView mVehiclesTextView;
+
+    private BroadcastReceiver mGcmRegistrationBroadcastReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -173,6 +186,27 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
 
+        //RECEIVER FOR GCM REGISTRATION
+        mGcmRegistrationBroadcastReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                SharedPreferences sharedPreferences =
+                        PreferenceManager.getDefaultSharedPreferences(context);
+                boolean sentToken = sharedPreferences
+                        .getBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, false);
+                if (sentToken) {
+                    Toast.makeText(MainActivity.this, "Token retrieved and sent to server!", Toast.LENGTH_LONG).show();
+                } else {
+                    Toast.makeText(MainActivity.this, "An error occurred while either fetching the InstanceID token", Toast.LENGTH_SHORT).show();
+                }
+            }
+        };
+
+        if (PlayServicesTools.checkPlayServices(this)) {
+            // Start IntentService to register this application with GCM.
+            Intent intent = new Intent(this, GcmRegistrationService.class);
+            startService(intent);
+        }
     }
 
     /**
@@ -526,6 +560,7 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
         if (myLocationOverlay != null) myLocationOverlay.enableMyLocation();
         if (reloadDataTimer != null) reloadDataTimer.cancel();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mGcmRegistrationBroadcastReceiver);
     }
 
     @Override
@@ -533,6 +568,7 @@ public class MainActivity extends AppCompatActivity {
     {
         super.onRestart();
         if (myLocationOverlay != null) myLocationOverlay.disableMyLocation();
+        LocalBroadcastManager.getInstance(this).registerReceiver(mGcmRegistrationBroadcastReceiver, new IntentFilter(QuickstartPreferences.REGISTRATION_COMPLETE));
         ScheduleLoadMarkers();
     }
 }
