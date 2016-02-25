@@ -83,8 +83,8 @@ public class GcmListenerService extends com.google.android.gms.gcm.GcmListenerSe
 
         Uri defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
         NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this)
-                .setSmallIcon(R.drawable.bus)
-                .setContentTitle("GCM Message")
+                .setSmallIcon(R.drawable.iredo_ico)
+                .setContentTitle("IREDO Viewer")
                 .setContentText(message)
                 .setAutoCancel(true)
                 .setSound(defaultSoundUri)

@@ -20,13 +20,11 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
-import android.support.v4.view.GravityCompat;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -41,10 +39,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -81,8 +76,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 
 import cz.tmapy.android.iredoviewer.gcm.GcmRegistrationService;
-import cz.tmapy.android.iredoviewer.gcm.PlayServicesTools;
-import cz.tmapy.android.iredoviewer.gcm.QuickstartPreferences;
+import cz.tmapy.android.iredoviewer.utils.PlayServicesUtils;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -193,7 +187,7 @@ public class MainActivity extends AppCompatActivity {
                 SharedPreferences sharedPreferences =
                         PreferenceManager.getDefaultSharedPreferences(context);
                 boolean sentToken = sharedPreferences
-                        .getBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, false);
+                        .getBoolean(GcmRegistrationService.SENT_TOKEN_TO_SERVER, false);
                 if (sentToken) {
                     Toast.makeText(MainActivity.this, "Token retrieved and sent to server!", Toast.LENGTH_LONG).show();
                 } else {
@@ -202,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
-        if (PlayServicesTools.checkPlayServices(this)) {
+        if (PlayServicesUtils.checkPlayServices(this)) {
             // Start IntentService to register this application with GCM.
             Intent intent = new Intent(this, GcmRegistrationService.class);
             startService(intent);
@@ -568,7 +562,7 @@ public class MainActivity extends AppCompatActivity {
     {
         super.onRestart();
         if (myLocationOverlay != null) myLocationOverlay.disableMyLocation();
-        LocalBroadcastManager.getInstance(this).registerReceiver(mGcmRegistrationBroadcastReceiver, new IntentFilter(QuickstartPreferences.REGISTRATION_COMPLETE));
+        LocalBroadcastManager.getInstance(this).registerReceiver(mGcmRegistrationBroadcastReceiver, new IntentFilter(GcmRegistrationService.REGISTRATION_COMPLETE));
         ScheduleLoadMarkers();
     }
 }

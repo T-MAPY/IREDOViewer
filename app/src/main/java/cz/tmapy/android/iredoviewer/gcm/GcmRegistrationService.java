@@ -1,5 +1,6 @@
 package cz.tmapy.android.iredoviewer.gcm;
 
+import android.app.Activity;
 import android.app.IntentService;
 import android.content.Context;
 import android.content.Intent;
@@ -12,6 +13,8 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.gcm.GcmPubSub;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 import com.google.android.gms.iid.InstanceID;
@@ -47,6 +50,9 @@ public class GcmRegistrationService extends IntentService {
     private static final String TAG = "GcmRegistrationService";
     private static final String[] TOPICS = {"global"};
 
+    public static final String SENT_TOKEN_TO_SERVER = "sentTokenToServer";
+    public static final String REGISTRATION_COMPLETE = "registrationComplete";
+
     private static final String REGISTRATION_SERVER_URL = "http://trex.svobodovi.net/gcm/register.php";
     private final int CONNECTION_TIMEOUT = 3000;
     private final int READ_TIMEOUT = 3000;
@@ -74,7 +80,7 @@ public class GcmRegistrationService extends IntentService {
             Log.i(TAG, "GCM Registration Token: " + token);
 
             if (isNetworkOnline()) {
-                sendRegistrationToServer("test_user", "no email", token);
+                sendRegistrationToServer(android.os.Build.MODEL, "", token);
             }
 
             // Subscribe to topic channels
@@ -83,17 +89,17 @@ public class GcmRegistrationService extends IntentService {
             // You should store a boolean that indicates whether the generated token has been
             // sent to your server. If the boolean is false, send the token to your server,
             // otherwise your server should have already received the token.
-            sharedPreferences.edit().putBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, true).apply();
+            sharedPreferences.edit().putBoolean(SENT_TOKEN_TO_SERVER, true).apply();
 
             // [END register_for_gcm]
         } catch (Exception e) {
             Log.d(TAG, "Failed to complete token refresh", e);
             // If an exception happens while fetching the new token or updating our registration data
             // on a third-party server, this ensures that we'll attempt the update at a later time.
-            sharedPreferences.edit().putBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, false).apply();
+            sharedPreferences.edit().putBoolean(SENT_TOKEN_TO_SERVER, false).apply();
         }
         // Notify UI that registration has completed, so the progress indicator can be hidden.
-        Intent registrationComplete = new Intent(QuickstartPreferences.REGISTRATION_COMPLETE);
+        Intent registrationComplete = new Intent(REGISTRATION_COMPLETE);
         LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(registrationComplete);
     }
 

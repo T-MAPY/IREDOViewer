@@ -1,4 +1,4 @@
-package cz.tmapy.android.iredoviewer.gcm;
+package cz.tmapy.android.iredoviewer.utils;
 
 import android.app.Activity;
 import android.util.Log;
@@ -9,8 +9,8 @@ import com.google.android.gms.common.GoogleApiAvailability;
 /**
  * Created by Kamil Svoboda on 24.2.2016.
  */
-public class PlayServicesTools {
-    private static final String TAG = "PlayServicesTools";
+public class PlayServicesUtils {
+    private static final String TAG = "PlayServicesUtils";
     private static final int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
 
     /**
