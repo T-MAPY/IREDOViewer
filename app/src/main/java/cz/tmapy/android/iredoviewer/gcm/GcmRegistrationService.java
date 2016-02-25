@@ -1,18 +1,41 @@
 package cz.tmapy.android.iredoviewer.gcm;
 
 import android.app.IntentService;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.AsyncTask;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.android.gms.gcm.GcmPubSub;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 import com.google.android.gms.iid.InstanceID;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.jar.Attributes;
 
+import javax.net.ssl.HttpsURLConnection;
+
+import cz.tmapy.android.iredoviewer.MainActivity;
 import cz.tmapy.android.iredoviewer.R;
 
 /**
@@ -24,15 +47,20 @@ public class GcmRegistrationService extends IntentService {
     private static final String TAG = "GcmRegistrationService";
     private static final String[] TOPICS = {"global"};
 
+    private static final String REGISTRATION_SERVER_URL = "http://trex.svobodovi.net/gcm/register.php";
+    private final int CONNECTION_TIMEOUT = 3000;
+    private final int READ_TIMEOUT = 3000;
+
+    SharedPreferences sharedPreferences;
+
     public GcmRegistrationService() {
         super(TAG);
     }
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-
         try {
+            sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
             // [START register_for_gcm]
             // Initially this call goes out to the network to retrieve the token, subsequent calls
             // are local.
@@ -45,8 +73,9 @@ public class GcmRegistrationService extends IntentService {
             // [END get_token]
             Log.i(TAG, "GCM Registration Token: " + token);
 
-            // TODO: Implement this method to send any registration to your app's servers.
-            sendRegistrationToServer(token);
+            if (isNetworkOnline()) {
+                sendRegistrationToServer("test_user", "no email", token);
+            }
 
             // Subscribe to topic channels
             subscribeTopics(token);
@@ -55,6 +84,7 @@ public class GcmRegistrationService extends IntentService {
             // sent to your server. If the boolean is false, send the token to your server,
             // otherwise your server should have already received the token.
             sharedPreferences.edit().putBoolean(QuickstartPreferences.SENT_TOKEN_TO_SERVER, true).apply();
+
             // [END register_for_gcm]
         } catch (Exception e) {
             Log.d(TAG, "Failed to complete token refresh", e);
@@ -64,19 +94,63 @@ public class GcmRegistrationService extends IntentService {
         }
         // Notify UI that registration has completed, so the progress indicator can be hidden.
         Intent registrationComplete = new Intent(QuickstartPreferences.REGISTRATION_COMPLETE);
-        LocalBroadcastManager.getInstance(this).sendBroadcast(registrationComplete);
+        LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(registrationComplete);
     }
 
     /**
      * Persist registration to third-party servers.
-     * <p/>
+     * <p>
      * Modify this method to associate the user's GCM registration token with any server-side account
      * maintained by your application.
      *
      * @param token The new token.
      */
-    private void sendRegistrationToServer(String token) {
-        // Add custom implementation, as needed.
+    private void sendRegistrationToServer(String name, String email, String token) {
+        String serverResponse = "";
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(REGISTRATION_SERVER_URL).openConnection();
+            conn.setConnectTimeout(CONNECTION_TIMEOUT);
+            conn.setReadTimeout(READ_TIMEOUT);
+            conn.setRequestMethod("POST");
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+
+            HashMap<String, String> postDataParams = new HashMap<String, String>();
+            postDataParams.put("regId", token);
+            postDataParams.put("name", name);
+            postDataParams.put("email", email);
+
+            OutputStream os = conn.getOutputStream();
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+            writer.write(getPostDataString(postDataParams));
+            writer.flush();
+            writer.close();
+            os.close();
+
+            int responseCode = conn.getResponseCode();
+
+            //accept all Successful 2xx responses
+            if (responseCode >= HttpsURLConnection.HTTP_OK && responseCode <= HttpsURLConnection.HTTP_PARTIAL) {
+                String line;
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                while ((line = br.readLine()) != null) {
+                    serverResponse += line;
+                }
+                Log.i(TAG, "Registration stored on server");
+            } else {
+                Log.w(TAG, "Server response: " + responseCode);
+            }
+
+        } catch (java.net.SocketTimeoutException e) {
+            Log.e(TAG, "Connection timeout!", e);
+            serverResponse = "Connection timeout!";
+        } catch (java.io.IOException e) {
+            Log.e(TAG, "Cannot read server response", e);
+            serverResponse = "Cannot read server response";
+        } catch (Exception e) {
+            Log.e(TAG, "HTTP connection error", e);
+            serverResponse = e.getLocalizedMessage();
+        }
     }
 
     /**
@@ -93,4 +167,34 @@ public class GcmRegistrationService extends IntentService {
         }
     }
     // [END subscribe_topics]
+
+    /**
+     * Checks network connectivity
+     *
+     * @return
+     */
+    public boolean isNetworkOnline() {
+        ConnectivityManager cm =
+                (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
+    }
+
+    private String getPostDataString(HashMap<String, String> params) throws UnsupportedEncodingException {
+        StringBuilder result = new StringBuilder();
+
+        boolean first = true;
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            if (first)
+                first = false;
+            else
+                result.append("&");
+
+            result.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+            result.append("=");
+            result.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+        }
+        return result.toString();
+    }
 }
