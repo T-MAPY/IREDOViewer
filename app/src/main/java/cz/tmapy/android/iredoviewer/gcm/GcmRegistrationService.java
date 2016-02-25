@@ -52,6 +52,9 @@ import cz.tmapy.android.iredoviewer.R;
 public class GcmRegistrationService extends IntentService {
 
     private static final String TAG = "GcmRegistrationService";
+    public static final String INTENT_ACTION_REGISTER = "cz.tmapy.android.iredoviewer.gcm.REGISTER";
+    public static final String INTENT_ACTION_UNREGISTER = "cz.tmapy.android.iredoviewer.gcm.UNREGISTER";
+
     private static final String[] TOPICS = {"global"};
 
     public static final String GCM_TOKEN = "gcmToken";
@@ -70,7 +73,7 @@ public class GcmRegistrationService extends IntentService {
     @Override
     protected void onHandleIntent(Intent intent) {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        if (intent.getAction().equals("cz.tmapy.android.iredoviewer.gcm.REGISTER")) {
+        if (intent.getAction().equals(REGISTRATION_SERVER_URL)) {
             try {
                 // [START register_for_gcm]
                 // Initially this call goes out to the network to retrieve the token, subsequent calls
@@ -109,7 +112,7 @@ public class GcmRegistrationService extends IntentService {
                 sharedPreferences.edit().remove(GCM_TOKEN).apply();
             }
 
-        } else if (intent.getAction().equals("cz.tmapy.android.iredoviewer.gcm.UNREGISTER")) {
+        } else if (intent.getAction().equals(UNREGISTRATION_SERVER_URL)) {
             try {
                 if (isNetworkOnline()) {
                     sendUnRegistrationToServer(sharedPreferences.getString(GCM_TOKEN, null));
