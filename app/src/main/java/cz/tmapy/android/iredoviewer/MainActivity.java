@@ -1,6 +1,8 @@
 package cz.tmapy.android.iredoviewer;
 
 import android.Manifest;
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -33,6 +35,7 @@ import android.os.Bundle;
 import android.support.v7.widget.SwitchCompat;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -74,6 +77,7 @@ import java.util.Date;
 import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.regex.Pattern;
 
 import cz.tmapy.android.iredoviewer.gcm.GcmRegistrationService;
 import cz.tmapy.android.iredoviewer.utils.PlayServicesUtils;
@@ -113,6 +117,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
         // Set a Toolbar to replace the ActionBar. In order to slide our navigation drawer over the ActionBar,
         // we need to use the new Toolbar widget as defined in the AppCompat v21 library.
         // The Toolbar can be embedded into your view hierarchy
@@ -133,10 +139,11 @@ public class MainActivity extends AppCompatActivity {
 
         // Setup listener for checkbox
         Menu menu = nvDrawer.getMenu();
-        MenuItem menuItem = menu.findItem(R.id.reload_menu_item);
-        LinearLayout linearLayout= (LinearLayout) MenuItemCompat.getActionView(menuItem);
-        SwitchCompat switchCompat = (SwitchCompat) linearLayout.findViewById(R.id.reload_switch);
-        switchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+
+        MenuItem reloadMenuItem = menu.findItem(R.id.reload_menu_item);
+        LinearLayout reloadLinearLayout= (LinearLayout) MenuItemCompat.getActionView(reloadMenuItem);
+        SwitchCompat relaodSwitchCompat = (SwitchCompat) reloadLinearLayout.findViewById(R.id.reload_switch);
+        relaodSwitchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked)
                 {
@@ -146,6 +153,40 @@ public class MainActivity extends AppCompatActivity {
                 {
                     if (reloadDataTimer != null) reloadDataTimer.cancel();
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_disabled), Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        MenuItem notificationsMenuItem = menu.findItem(R.id.register_notif_menu_item);
+        LinearLayout notifLinearLayout= (LinearLayout) MenuItemCompat.getActionView(notificationsMenuItem);
+        SwitchCompat notifSwitchCompat = (SwitchCompat) notifLinearLayout.findViewById(R.id.notifications_switch);
+        notifSwitchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (isChecked)
+                {
+                    SharedPreferences sharedPreferences =
+                            PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                    boolean sentToken = sharedPreferences
+                            .getBoolean(GcmRegistrationService.SENT_TOKEN_TO_SERVER, false);
+                    if (!sentToken)
+                    {
+                        //TRY TO LOCATE USER
+                        if (android.os.Build.VERSION.SDK_INT < 23) {
+                            registerForNotifications();
+                        } else if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.GET_ACCOUNTS) == PackageManager.PERMISSION_GRANTED) {
+                            registerForNotifications();
+                        } else {
+                            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, Manifest.permission.GET_ACCOUNTS)) {
+                                Toast.makeText(MainActivity.this, getResources().getString(R.string.perm_get_accounts), Toast.LENGTH_LONG).show();
+                            }
+                            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.GET_ACCOUNTS}, 3);
+                        }
+                    }
+                    LocalBroadcastManager.getInstance(MainActivity.this).registerReceiver(mGcmRegistrationBroadcastReceiver, new IntentFilter(GcmRegistrationService.REGISTRATION_COMPLETE));
+                }else
+                {
+                    LocalBroadcastManager.getInstance(MainActivity.this).unregisterReceiver(mGcmRegistrationBroadcastReceiver);
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_notif_disabled), Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -196,6 +237,13 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+    }
+
+    /**
+     * Start service to register for notifications
+     */
+    private void registerForNotifications()
+    {
         if (PlayServicesUtils.checkPlayServices(this)) {
             // Start IntentService to register this application with GCM.
             Intent intent = new Intent(this, GcmRegistrationService.class);
@@ -275,6 +323,13 @@ public class MainActivity extends AppCompatActivity {
                     case 2:
                         if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                             LocateMe();
+                        } else {
+                            Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
+                        }
+                        break;
+                    case 3:
+                        if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                            registerForNotifications();
                         } else {
                             Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
                         }

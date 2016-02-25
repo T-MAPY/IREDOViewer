@@ -1,5 +1,7 @@
 package cz.tmapy.android.iredoviewer.gcm;
 
+import android.accounts.Account;
+import android.accounts.AccountManager;
 import android.app.Activity;
 import android.app.IntentService;
 import android.content.Context;
@@ -11,6 +13,7 @@ import android.os.AsyncTask;
 import android.preference.PreferenceManager;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.util.Patterns;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -35,6 +38,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.jar.Attributes;
+import java.util.regex.Pattern;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -79,8 +83,19 @@ public class GcmRegistrationService extends IntentService {
             // [END get_token]
             Log.i(TAG, "GCM Registration Token: " + token);
 
+            // get users gmail account of the user
+            String gmail = null;
+            Pattern gmailPattern = Patterns.EMAIL_ADDRESS; // API level 8+
+            Account[] accounts = AccountManager.get(this).getAccounts();
+            for (Account account : accounts) {
+                if (gmailPattern.matcher(account.name).matches()) {
+                    gmail = account.name;
+                }
+            }
+
+            Toast.makeText(this, gmail, Toast.LENGTH_LONG).show();
             if (isNetworkOnline()) {
-                sendRegistrationToServer(android.os.Build.MODEL, "", token);
+                sendRegistrationToServer(android.os.Build.MODEL, gmail, token);
             }
 
             // Subscribe to topic channels
