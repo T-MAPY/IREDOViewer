@@ -46,6 +46,9 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.gcm.GoogleCloudMessaging;
+import com.google.android.gms.iid.InstanceID;
+
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.clustering.RadiusMarkerClusterer;
 import org.osmdroid.bonuspack.kml.KmlDocument;
@@ -103,21 +106,23 @@ public class MainActivity extends AppCompatActivity {
 
     private LocationManager mLocMgr;
     private Timer reloadDataTimer;
-    private static int MAP_UPDATE_INTERVAL_MS = 10000;
+    private static final int MAP_UPDATE_INTERVAL_MS = 10000;
+    private static final String RELOAD_ENABLED = "reloadEnabled";
 
     private static int TEXT_SIZE_DIP = 12; //size of text over icons
 
     private ProgressDialog progress = null;
     private TextView mVehiclesTextView;
 
-    private BroadcastReceiver mGcmRegistrationBroadcastReceiver;
-
+    SharedPreferences sharedPreferences;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        if (!sharedPreferences.contains(RELOAD_ENABLED))
+            sharedPreferences.edit().putBoolean(RELOAD_ENABLED, true).apply();
 
         // Set a Toolbar to replace the ActionBar. In order to slide our navigation drawer over the ActionBar,
         // we need to use the new Toolbar widget as defined in the AppCompat v21 library.
@@ -143,15 +148,20 @@ public class MainActivity extends AppCompatActivity {
         MenuItem reloadMenuItem = menu.findItem(R.id.reload_menu_item);
         LinearLayout reloadLinearLayout= (LinearLayout) MenuItemCompat.getActionView(reloadMenuItem);
         SwitchCompat relaodSwitchCompat = (SwitchCompat) reloadLinearLayout.findViewById(R.id.reload_switch);
+        relaodSwitchCompat.setChecked(sharedPreferences.getBoolean(RELOAD_ENABLED, false));
         relaodSwitchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SharedPreferences sharedPreferences =
+                        PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
                 if (isChecked)
                 {
                     ScheduleLoadMarkers();
+                    sharedPreferences.edit().putBoolean(RELOAD_ENABLED, true).apply();
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_enabled), Toast.LENGTH_SHORT).show();
                 }else
                 {
                     if (reloadDataTimer != null) reloadDataTimer.cancel();
+                    sharedPreferences.edit().putBoolean(RELOAD_ENABLED, false).apply();
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_disabled), Toast.LENGTH_SHORT).show();
                 }
             }
@@ -160,15 +170,16 @@ public class MainActivity extends AppCompatActivity {
         MenuItem notificationsMenuItem = menu.findItem(R.id.register_notif_menu_item);
         LinearLayout notifLinearLayout= (LinearLayout) MenuItemCompat.getActionView(notificationsMenuItem);
         SwitchCompat notifSwitchCompat = (SwitchCompat) notifLinearLayout.findViewById(R.id.notifications_switch);
+        if (sharedPreferences.getString(GcmRegistrationService.GCM_TOKEN, null) != null)
+            notifSwitchCompat.setChecked(true);
         notifSwitchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                SharedPreferences sharedPreferences =
+                        PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                String token = sharedPreferences.getString(GcmRegistrationService.GCM_TOKEN, null);
                 if (isChecked)
                 {
-                    SharedPreferences sharedPreferences =
-                            PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                    boolean sentToken = sharedPreferences
-                            .getBoolean(GcmRegistrationService.SENT_TOKEN_TO_SERVER, false);
-                    if (!sentToken)
+                    if (token == null)
                     {
                         //TRY TO LOCATE USER
                         if (android.os.Build.VERSION.SDK_INT < 23) {
@@ -182,11 +193,13 @@ public class MainActivity extends AppCompatActivity {
                             ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.GET_ACCOUNTS}, 3);
                         }
                     }
-                    LocalBroadcastManager.getInstance(MainActivity.this).registerReceiver(mGcmRegistrationBroadcastReceiver, new IntentFilter(GcmRegistrationService.REGISTRATION_COMPLETE));
                 }else
                 {
-                    LocalBroadcastManager.getInstance(MainActivity.this).unregisterReceiver(mGcmRegistrationBroadcastReceiver);
-                    Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_notif_disabled), Toast.LENGTH_SHORT).show();
+                    if (token != null)
+                    {
+                        unRegisterForNotifications();
+                        Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_notif_disabled), Toast.LENGTH_SHORT).show();
+                    }
                 }
             }
         });
@@ -220,23 +233,6 @@ public class MainActivity extends AppCompatActivity {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
-
-        //RECEIVER FOR GCM REGISTRATION
-        mGcmRegistrationBroadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                SharedPreferences sharedPreferences =
-                        PreferenceManager.getDefaultSharedPreferences(context);
-                boolean sentToken = sharedPreferences
-                        .getBoolean(GcmRegistrationService.SENT_TOKEN_TO_SERVER, false);
-                if (sentToken) {
-                    Toast.makeText(MainActivity.this, "Token retrieved and sent to server!", Toast.LENGTH_LONG).show();
-                } else {
-                    Toast.makeText(MainActivity.this, "An error occurred while either fetching the InstanceID token", Toast.LENGTH_SHORT).show();
-                }
-            }
-        };
-
     }
 
     /**
@@ -247,6 +243,20 @@ public class MainActivity extends AppCompatActivity {
         if (PlayServicesUtils.checkPlayServices(this)) {
             // Start IntentService to register this application with GCM.
             Intent intent = new Intent(this, GcmRegistrationService.class);
+            intent.setAction("cz.tmapy.android.iredoviewer.gcm.REGISTER");
+            startService(intent);
+        }
+    }
+
+    /**
+     * Unregister notifications
+     */
+    private void unRegisterForNotifications()
+    {
+        if (PlayServicesUtils.checkPlayServices(this)) {
+            // Start IntentService to register this application with GCM.
+            Intent intent = new Intent(this, GcmRegistrationService.class);
+            intent.setAction("cz.tmapy.android.iredoviewer.gcm.UNREGISTER");
             startService(intent);
         }
     }
@@ -420,9 +430,13 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
-                getResources().getString(R.string.data_loading_message), true);
-        ScheduleLoadMarkers();
+        if (sharedPreferences.getBoolean(RELOAD_ENABLED, false))
+        {
+            progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
+                    getResources().getString(R.string.data_loading_message), true);
+
+            ScheduleLoadMarkers();
+        }
     }
 
     /**
@@ -609,7 +623,6 @@ public class MainActivity extends AppCompatActivity {
         super.onStop();
         if (myLocationOverlay != null) myLocationOverlay.enableMyLocation();
         if (reloadDataTimer != null) reloadDataTimer.cancel();
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(mGcmRegistrationBroadcastReceiver);
     }
 
     @Override
@@ -617,7 +630,6 @@ public class MainActivity extends AppCompatActivity {
     {
         super.onRestart();
         if (myLocationOverlay != null) myLocationOverlay.disableMyLocation();
-        LocalBroadcastManager.getInstance(this).registerReceiver(mGcmRegistrationBroadcastReceiver, new IntentFilter(GcmRegistrationService.REGISTRATION_COMPLETE));
-        ScheduleLoadMarkers();
+        if (sharedPreferences.getBoolean(RELOAD_ENABLED, false)) ScheduleLoadMarkers();
     }
 }

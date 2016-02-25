@@ -54,10 +54,10 @@ public class GcmRegistrationService extends IntentService {
     private static final String TAG = "GcmRegistrationService";
     private static final String[] TOPICS = {"global"};
 
-    public static final String SENT_TOKEN_TO_SERVER = "sentTokenToServer";
-    public static final String REGISTRATION_COMPLETE = "registrationComplete";
+    public static final String GCM_TOKEN = "gcmToken";
 
     private static final String REGISTRATION_SERVER_URL = "http://trex.svobodovi.net/gcm/register.php";
+    private static final String UNREGISTRATION_SERVER_URL = "http://trex.svobodovi.net/gcm/unregister.php";
     private final int CONNECTION_TIMEOUT = 3000;
     private final int READ_TIMEOUT = 3000;
 
@@ -69,53 +69,59 @@ public class GcmRegistrationService extends IntentService {
 
     @Override
     protected void onHandleIntent(Intent intent) {
-        try {
-            sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-            // [START register_for_gcm]
-            // Initially this call goes out to the network to retrieve the token, subsequent calls
-            // are local.
-            // R.string.gcm_defaultSenderId (the Sender ID) is typically derived from google-services.json.
-            // See https://developers.google.com/cloud-messaging/android/start for details on this file.
-            // [START get_token]
-            InstanceID instanceID = InstanceID.getInstance(this);
-            String token = instanceID.getToken(getString(R.string.gcm_defaultSenderId),
-                    GoogleCloudMessaging.INSTANCE_ID_SCOPE, null);
-            // [END get_token]
-            Log.i(TAG, "GCM Registration Token: " + token);
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        if (intent.getAction().equals("cz.tmapy.android.iredoviewer.gcm.REGISTER")) {
+            try {
+                // [START register_for_gcm]
+                // Initially this call goes out to the network to retrieve the token, subsequent calls
+                // are local.
+                // R.string.gcm_defaultSenderId (the Sender ID) is typically derived from google-services.json.
+                // See https://developers.google.com/cloud-messaging/android/start for details on this file.
+                // [START get_token]
+                InstanceID instanceID = InstanceID.getInstance(this);
+                String token = instanceID.getToken(getString(R.string.gcm_defaultSenderId),
+                        GoogleCloudMessaging.INSTANCE_ID_SCOPE, null);
+                // [END get_token]
+                Log.i(TAG, "GCM Registration Token: " + token);
 
-            // get users gmail account of the user
-            String gmail = null;
-            Pattern gmailPattern = Patterns.EMAIL_ADDRESS; // API level 8+
-            Account[] accounts = AccountManager.get(this).getAccounts();
-            for (Account account : accounts) {
-                if (gmailPattern.matcher(account.name).matches()) {
-                    gmail = account.name;
+                // get users gmail account of the user
+                String gmail = null;
+                Pattern gmailPattern = Patterns.EMAIL_ADDRESS; // API level 8+
+                Account[] accounts = AccountManager.get(this).getAccounts();
+                for (Account account : accounts) {
+                    if (gmailPattern.matcher(account.name).matches()) {
+                        gmail = account.name;
+                    }
                 }
+
+                if (isNetworkOnline()) {
+                    sendRegistrationToServer(android.os.Build.MODEL, gmail, token);
+                }
+
+                // Subscribe to topic channels
+                subscribeTopics(token);
+
+                sharedPreferences.edit().putString(GCM_TOKEN, token).apply();
+
+                // [END register_for_gcm]
+            } catch (Exception e) {
+                Log.d(TAG, "Failed to complete token refresh", e);
+                sharedPreferences.edit().remove(GCM_TOKEN).apply();
             }
 
-            Toast.makeText(this, gmail, Toast.LENGTH_LONG).show();
-            if (isNetworkOnline()) {
-                sendRegistrationToServer(android.os.Build.MODEL, gmail, token);
+        } else if (intent.getAction().equals("cz.tmapy.android.iredoviewer.gcm.UNREGISTER")) {
+            try {
+                if (isNetworkOnline()) {
+                    sendUnRegistrationToServer(sharedPreferences.getString(GCM_TOKEN, null));
+                }
+
+                InstanceID.getInstance(this).deleteToken(getString(R.string.gcm_defaultSenderId), null);
+                sharedPreferences.edit().remove(GCM_TOKEN).apply();
+            } catch (IOException e) {
+                Log.e(TAG, e.getLocalizedMessage(), e);
+                Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
             }
-
-            // Subscribe to topic channels
-            subscribeTopics(token);
-
-            // You should store a boolean that indicates whether the generated token has been
-            // sent to your server. If the boolean is false, send the token to your server,
-            // otherwise your server should have already received the token.
-            sharedPreferences.edit().putBoolean(SENT_TOKEN_TO_SERVER, true).apply();
-
-            // [END register_for_gcm]
-        } catch (Exception e) {
-            Log.d(TAG, "Failed to complete token refresh", e);
-            // If an exception happens while fetching the new token or updating our registration data
-            // on a third-party server, this ensures that we'll attempt the update at a later time.
-            sharedPreferences.edit().putBoolean(SENT_TOKEN_TO_SERVER, false).apply();
         }
-        // Notify UI that registration has completed, so the progress indicator can be hidden.
-        Intent registrationComplete = new Intent(REGISTRATION_COMPLETE);
-        LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(registrationComplete);
     }
 
     /**
@@ -158,6 +164,55 @@ public class GcmRegistrationService extends IntentService {
                     serverResponse += line;
                 }
                 Log.i(TAG, "Registration stored on server");
+            } else {
+                Log.w(TAG, "Server response: " + responseCode);
+            }
+
+        } catch (java.net.SocketTimeoutException e) {
+            Log.e(TAG, "Connection timeout!", e);
+            serverResponse = "Connection timeout!";
+        } catch (java.io.IOException e) {
+            Log.e(TAG, "Cannot read server response", e);
+            serverResponse = "Cannot read server response";
+        } catch (Exception e) {
+            Log.e(TAG, "HTTP connection error", e);
+            serverResponse = e.getLocalizedMessage();
+        }
+    }
+
+    /**
+     * Remove registration
+     */
+    private void sendUnRegistrationToServer(String token) {
+        String serverResponse = "";
+        try {
+            HttpURLConnection conn = (HttpURLConnection) new URL(UNREGISTRATION_SERVER_URL).openConnection();
+            conn.setConnectTimeout(CONNECTION_TIMEOUT);
+            conn.setReadTimeout(READ_TIMEOUT);
+            conn.setRequestMethod("POST");
+            conn.setDoInput(true);
+            conn.setDoOutput(true);
+
+            HashMap<String, String> postDataParams = new HashMap<String, String>();
+            postDataParams.put("regId", token);
+
+            OutputStream os = conn.getOutputStream();
+            BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+            writer.write(getPostDataString(postDataParams));
+            writer.flush();
+            writer.close();
+            os.close();
+
+            int responseCode = conn.getResponseCode();
+
+            //accept all Successful 2xx responses
+            if (responseCode >= HttpsURLConnection.HTTP_OK && responseCode <= HttpsURLConnection.HTTP_PARTIAL) {
+                String line;
+                BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                while ((line = br.readLine()) != null) {
+                    serverResponse += line;
+                }
+                Log.i(TAG, "Client unregistered");
             } else {
                 Log.w(TAG, "Server response: " + responseCode);
             }

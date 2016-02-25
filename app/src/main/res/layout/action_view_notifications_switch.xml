@@ -7,6 +7,5 @@
         android:id="@+id/notifications_switch"
         android:layout_width="fill_parent"
         android:layout_height="match_parent"
-        android:textIsSelectable="false"
-        android:checked="false" />
+        android:textIsSelectable="false" />
 </LinearLayout>

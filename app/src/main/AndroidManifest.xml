@@ -46,7 +46,12 @@
             </intent-filter>
         </service>
 
-        <service android:name=".gcm.GcmRegistrationService"/>
+        <service android:name=".gcm.GcmRegistrationService">
+            <intent-filter>
+                <action android:name="cz.tmapy.android.iredoviewer.gcm.REGISTER" />
+                <action android:name="cz.tmapy.android.iredoviewer.gcm.UNREGISTER" />
+            </intent-filter>
+        </service>
 
         <activity android:name=".MainActivity">
             <intent-filter>
