@@ -31,24 +31,25 @@
             </intent-filter>
         </receiver>
         <service
-            android:name="cz.tmapy.android.iredoviewer.gcm.GcmListenerService"
+            android:name=".gcm.GcmListenerService"
             android:exported="false" >
             <intent-filter>
                 <action android:name="com.google.android.c2dm.intent.RECEIVE" />
             </intent-filter>
         </service>
         <service
-            android:name="cz.tmapy.android.iredoviewer.gcm.GcmInstanceIDListenerService"
+            android:name=".gcm.GcmInstanceIDListenerService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.android.gms.iid.InstanceID" />
             </intent-filter>
         </service>
 
+        <service android:name=".gcm.GcmRegistrationService"/>
+
         <activity android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
