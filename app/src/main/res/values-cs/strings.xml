@@ -13,4 +13,7 @@
     <string name="menu_reloading_enabled">Obnovování zapnuto</string>
     <string name="menu_reloading_disabled">Obnovování vypnuto</string>
     <string name="menu_github">Domácí stránka na GitHub</string>
+    <string name="perm_get_accounts">Právo je potřeba pro registraci notifikací</string>
+    <string name="menu_register_notif">Notifikace dispečinku</string>
+    <string name="menu_notif_disabled">Notifikace vypnuty</string>
 </resources>
