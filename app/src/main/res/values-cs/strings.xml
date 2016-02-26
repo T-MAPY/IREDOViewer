@@ -9,7 +9,7 @@
     <string name="drawer_close">Zavřít nabídku</string>
     <string name="drawer_open">Otevřít nabídku</string>
     <string name="menu_title">Hlavní nabídka</string>
-    <string name="menu_autorefresh">Automaticky obnovovat</string>
+    <string name="menu_autorefresh">Automaticky načítat</string>
     <string name="menu_reloading_enabled">Obnovování zapnuto</string>
     <string name="menu_reloading_disabled">Obnovování vypnuto</string>
     <string name="menu_github">Domácí stránka na GitHub</string>
