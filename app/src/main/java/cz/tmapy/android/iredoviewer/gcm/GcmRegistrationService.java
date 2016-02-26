@@ -108,20 +108,20 @@ public class GcmRegistrationService extends IntentService {
 
                 // [END register_for_gcm]
             } catch (Exception e) {
-                Log.d(TAG, "Failed to complete token refresh", e);
+                Log.d(TAG, "Failed to get GCM token", e);
                 sharedPreferences.edit().remove(GCM_TOKEN).apply();
             }
 
         } else if (intent.getAction().equals(UNREGISTRATION_SERVER_URL)) {
             try {
-                InstanceID.getInstance(this).deleteToken(getString(R.string.gcm_defaultSenderId), null);
+                //InstanceID.getInstance(this).deleteToken(getString(R.string.gcm_defaultSenderId), null);
                 InstanceID.getInstance(this).deleteInstanceID();
 
                 if (isNetworkOnline()) {
                     sendUnRegistrationToServer(sharedPreferences.getString(GCM_TOKEN, null));
                 }
-
                 sharedPreferences.edit().remove(GCM_TOKEN).apply();
+
             } catch (IOException e) {
                 Log.e(TAG, e.getLocalizedMessage(), e);
                 Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
