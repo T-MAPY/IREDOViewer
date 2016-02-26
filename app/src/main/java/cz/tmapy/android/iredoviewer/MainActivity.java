@@ -432,9 +432,6 @@ public class MainActivity extends AppCompatActivity {
 
         if (sharedPreferences.getBoolean(RELOAD_ENABLED, false))
         {
-            progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
-                    getResources().getString(R.string.data_loading_message), true);
-
             ScheduleLoadMarkers();
         }
     }
@@ -445,6 +442,9 @@ public class MainActivity extends AppCompatActivity {
     private void ScheduleLoadMarkers() {
         if (reloadDataTimer != null) //to prevent schedule timer multipletimes
             reloadDataTimer.cancel();
+
+        progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
+                getResources().getString(R.string.data_loading_message), true);
 
         reloadDataTimer = new Timer();
         reloadDataTimer.schedule(new TimerTask() {
@@ -544,10 +544,12 @@ public class MainActivity extends AppCompatActivity {
                                     String textToIcon = parts[0];
                                     if ("b".equals(feature.getExtendedData("type"))) {
                                         marker.setTitle("Bus " + feature.getExtendedData("line_number") + " / " + feature.getExtendedData("service_number"));
-                                        marker.setIcon(writeOnDrawable(R.drawable.bus48x48, textToIcon));
+                                        //marker.setIcon(writeOnDrawable(R.drawable.bus48x48, textToIcon));
+                                        marker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.drawable.bus48x48));
                                     } else {
                                         marker.setTitle(feature.mName);
-                                        marker.setIcon(writeOnDrawable(R.drawable.rail48x48, textToIcon));
+                                        //marker.setIcon(writeOnDrawable(R.drawable.rail48x48, textToIcon));
+                                        marker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.drawable.rail48x48));
                                     }
 
                                     marker.setRelatedObject(feature);
