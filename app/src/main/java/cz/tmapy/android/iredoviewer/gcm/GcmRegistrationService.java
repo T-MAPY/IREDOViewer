@@ -111,11 +111,13 @@ public class GcmRegistrationService extends IntentService {
 
         } else if (intent.getAction().equals("cz.tmapy.android.iredoviewer.gcm.UNREGISTER")) {
             try {
+                InstanceID.getInstance(this).deleteToken(getString(R.string.gcm_defaultSenderId), null);
+                InstanceID.getInstance(this).deleteInstanceID();
+
                 if (isNetworkOnline()) {
                     sendUnRegistrationToServer(sharedPreferences.getString(GCM_TOKEN, null));
                 }
 
-                InstanceID.getInstance(this).deleteToken(getString(R.string.gcm_defaultSenderId), null);
                 sharedPreferences.edit().remove(GCM_TOKEN).apply();
             } catch (IOException e) {
                 Log.e(TAG, e.getLocalizedMessage(), e);
