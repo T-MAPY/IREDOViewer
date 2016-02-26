@@ -243,7 +243,7 @@ public class MainActivity extends AppCompatActivity {
         if (PlayServicesUtils.checkPlayServices(this)) {
             // Start IntentService to register this application with GCM.
             Intent intent = new Intent(this, GcmRegistrationService.class);
-            intent.setAction("cz.tmapy.android.iredoviewer.gcm.REGISTER");
+            intent.setAction(GcmRegistrationService.INTENT_ACTION_REGISTER);
             startService(intent);
         }
     }
@@ -256,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
         if (PlayServicesUtils.checkPlayServices(this)) {
             // Start IntentService to register this application with GCM.
             Intent intent = new Intent(this, GcmRegistrationService.class);
-            intent.setAction("cz.tmapy.android.iredoviewer.gcm.UNREGISTER");
+            intent.setAction(GcmRegistrationService.INTENT_ACTION_UNREGISTER);
             startService(intent);
         }
     }
