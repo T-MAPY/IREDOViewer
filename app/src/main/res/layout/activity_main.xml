@@ -38,7 +38,7 @@
                 android:layout_alignParentTop="true"
                 android:background="#80DDDDDD"
                 android:padding="5dp"
-                android:text="256 vozidel"
+                android:text="0 vozidel"
                 android:textSize="16dp" />
 
             <ImageButton

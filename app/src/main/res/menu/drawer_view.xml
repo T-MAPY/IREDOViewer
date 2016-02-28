@@ -6,22 +6,29 @@
             <item
                 android:id="@+id/nav_tm_osm"
                 android:checked="true"
-                android:icon="@drawable/moreinfo_arrow"
-                android:title="T-MAPY OSM" />
+                android:icon="@drawable/ic_map_black_24dp"
+                android:title="OSM T-MAPY" />
             <item
                 android:id="@+id/nav_mapnik"
-                android:icon="@drawable/moreinfo_arrow"
-                android:title="Mapquest" />
+                android:icon="@drawable/ic_map_black_24dp"
+                android:title="OSM Mapnik" />
         </group>
     <group android:id="@+id/grp2" android:checkableBehavior="none" >
+        <item
+            android:id="@+id/settings_menu_item"
+            android:title="@string/menu_settings"
+            android:icon="@drawable/ic_settings_black_24dp"
+            android:checkable="false"/>
         <item
             android:id="@+id/reload_menu_item"
             android:title="@string/menu_autorefresh"
             android:checkable="false"
+            android:icon="@drawable/ic_autorenew_black_24dp"
             app:actionLayout="@layout/action_view_reload_switch" />
         <item
             android:id="@+id/github_item"
             android:checkable="false"
+            android:icon="@drawable/ic_link_black_24dp"
             android:title="@string/menu_github"/>
     </group>
 </menu>

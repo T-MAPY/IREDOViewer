@@ -3,6 +3,7 @@ package cz.tmapy.android.iredoviewer;
 import android.Manifest;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -16,11 +17,10 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Handler;
+import android.preference.PreferenceManager;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.view.GravityCompat;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -35,9 +35,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -49,11 +47,14 @@ import org.osmdroid.bonuspack.kml.KmlPlacemark;
 import org.osmdroid.bonuspack.kml.KmlPoint;
 import org.osmdroid.bonuspack.overlays.Marker;
 import org.osmdroid.tileprovider.MapTile;
+import org.osmdroid.tileprovider.MapTileProviderBasic;
+import org.osmdroid.tileprovider.tilesource.ITileSource;
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
+import org.osmdroid.views.overlay.TilesOverlay;
 import org.osmdroid.views.overlay.compass.CompassOverlay;
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider;
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay;
@@ -70,7 +71,10 @@ import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class MainActivity extends AppCompatActivity {
+import cz.tmapy.android.iredoviewer.gcm.GcmRegistrationService;
+import cz.tmapy.android.iredoviewer.utils.PlayServicesUtils;
+
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     private final static String TAG = "IREDOViewerMap";
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
@@ -82,24 +86,34 @@ public class MainActivity extends AppCompatActivity {
     private ActionBarDrawerToggle drawerToggle;
 
     MapView map;
-    MyLocationNewOverlay myLocationOverlay = null;
-    RadiusMarkerClusterer vehiclesOverlay = null;
+    ITileSource tmapyOsmTiles;
+    TilesOverlay hillShade;
+    MyLocationNewOverlay myLocationOverlay;
+    RadiusMarkerClusterer vehiclesOverlay;
 
-    GpsMyLocationProvider locationProvider = null;
+    GpsMyLocationProvider locationProvider;
 
     private LocationManager mLocMgr;
     private Timer reloadDataTimer;
-    private static int MAP_UPDATE_INTERVAL_MS = 10000;
+    private static final int MAP_UPDATE_INTERVAL_MS = 10000;
+    private static final String RELOAD_ENABLED = "reloadEnabled";
 
     private static int TEXT_SIZE_DIP = 12; //size of text over icons
 
     private ProgressDialog progress = null;
     private TextView mVehiclesTextView;
 
+    SharedPreferences sharedPreferences;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this);
+        if (!sharedPreferences.contains(RELOAD_ENABLED))
+            sharedPreferences.edit().putBoolean(RELOAD_ENABLED, true).apply();
 
         // Set a Toolbar to replace the ActionBar. In order to slide our navigation drawer over the ActionBar,
         // we need to use the new Toolbar widget as defined in the AppCompat v21 library.
@@ -121,22 +135,35 @@ public class MainActivity extends AppCompatActivity {
 
         // Setup listener for checkbox
         Menu menu = nvDrawer.getMenu();
-        MenuItem menuItem = menu.findItem(R.id.reload_menu_item);
-        LinearLayout linearLayout= (LinearLayout) MenuItemCompat.getActionView(menuItem);
-        SwitchCompat switchCompat = (SwitchCompat) linearLayout.findViewById(R.id.reload_switch);
-        switchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+
+        MenuItem reloadMenuItem = menu.findItem(R.id.reload_menu_item);
+        LinearLayout reloadLinearLayout = (LinearLayout) MenuItemCompat.getActionView(reloadMenuItem);
+        SwitchCompat relaodSwitchCompat = (SwitchCompat) reloadLinearLayout.findViewById(R.id.reload_switch);
+        relaodSwitchCompat.setChecked(sharedPreferences.getBoolean(RELOAD_ENABLED, false));
+        relaodSwitchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked)
-                {
+                SharedPreferences sharedPreferences =
+                        PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                if (isChecked) {
                     ScheduleLoadMarkers();
+                    sharedPreferences.edit().putBoolean(RELOAD_ENABLED, true).apply();
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_enabled), Toast.LENGTH_SHORT).show();
-                }else
-                {
+                } else {
                     if (reloadDataTimer != null) reloadDataTimer.cancel();
+                    sharedPreferences.edit().putBoolean(RELOAD_ENABLED, false).apply();
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_disabled), Toast.LENGTH_SHORT).show();
                 }
             }
         });
+
+        tmapyOsmTiles = new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
+                new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
+            @Override
+            public String getTileURLString(MapTile aTile) {
+                return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
+                        + mImageFilenameEnding;
+            }
+        };
 
         //INIT MAP
         if (android.os.Build.VERSION.SDK_INT < 23) {
@@ -158,11 +185,47 @@ public class MainActivity extends AppCompatActivity {
         } else {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 2);
         }
-
     }
 
     /**
+     * Start service to register for notifications
+     */
+    private void registerForNotifications() {
+        if (PlayServicesUtils.checkPlayServices(this)) {
+            // Start IntentService to register this application with GCM.
+            Intent intent = new Intent(this, GcmRegistrationService.class);
+            intent.setAction(GcmRegistrationService.INTENT_ACTION_REGISTER_NOTIFICATIONS);
+            startService(intent);
+        }
+    }
+
+    /**
+     * Unregister notifications
+     */
+    private void unRegisterForNotifications() {
+        if (PlayServicesUtils.checkPlayServices(this)) {
+            // Start IntentService to register this application with GCM.
+            Intent intent = new Intent(this, GcmRegistrationService.class);
+            intent.setAction(GcmRegistrationService.INTENT_ACTION_UNREGISTER_NOTIFICATIONS);
+            startService(intent);
+        }
+    }
+
+    /**
+     * Register topic
+     * @param topic
+     */
+    private void registerTopic(String topic){
+        if (PlayServicesUtils.checkPlayServices(this)){
+            Intent intent = new Intent(this, GcmRegistrationService.class);
+            intent.setAction(GcmRegistrationService.INTENT_ACTION_REGISTER_TOPIC);
+            intent.putExtra(GcmRegistrationService.INTENT_EXTRA_TOPIC, topic);
+            startService(intent);
+        }
+    }
+    /**
      * Nastavení reakcí na nabídky v navigation drawer
+     *
      * @param navigationView
      */
     private void setupDrawerContent(NavigationView navigationView) {
@@ -172,23 +235,20 @@ public class MainActivity extends AppCompatActivity {
                     public boolean onNavigationItemSelected(MenuItem menuItem) {
                         switch (menuItem.getItemId()) {
                             case R.id.nav_tm_osm:
-                                map.setTileSource(new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
-                                        new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
-                                    @Override
-                                    public String getTileURLString(MapTile aTile) {
-                                        return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
-                                                + mImageFilenameEnding;
-                                    }
-                                });
+                                map.setTileSource(tmapyOsmTiles);
                                 Toast.makeText(MainActivity.this, "T-MAPY OSM", Toast.LENGTH_SHORT).show();
                                 break;
                             case R.id.nav_mapnik:
-                                map.setTileSource(TileSourceFactory.MAPQUESTOSM);
-                                Toast.makeText(MainActivity.this, "Mapquest", Toast.LENGTH_SHORT).show();
+                                map.setTileSource(TileSourceFactory.MAPNIK);
+                                Toast.makeText(MainActivity.this, "Mapnik", Toast.LENGTH_SHORT).show();
+                                break;
+                            case R.id.settings_menu_item:
+                                Intent intent = new Intent(getApplicationContext(), Settings.class);
+                                startActivity(intent);
                                 break;
                             case R.id.github_item:
                                 Uri uri = Uri.parse("https://github.com/T-MAPY/IREDOViewer");
-                                startActivity( new Intent( Intent.ACTION_VIEW, uri ) );
+                                startActivity(new Intent(Intent.ACTION_VIEW, uri));
                                 break;
                             default:
                                 //Toast.makeText(MainActivity.this, "not implemented", Toast.LENGTH_SHORT).show();
@@ -201,6 +261,40 @@ public class MainActivity extends AppCompatActivity {
                         return true;
                     }
                 });
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+        // Aktualizuje lokální proměnné při změně konfigurace
+        switch (key) {
+            case "pref_enable_notifications":
+                if (prefs.getBoolean(key, true)) {
+                    if (prefs.getString(GcmRegistrationService.GCM_TOKEN, null) == null) {
+                        //TRY TO LOCATE USER
+                        if (android.os.Build.VERSION.SDK_INT < 23) {
+                            registerForNotifications();
+                        } else if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.GET_ACCOUNTS) == PackageManager.PERMISSION_GRANTED) {
+                            registerForNotifications();
+                        } else {
+                            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, Manifest.permission.GET_ACCOUNTS)) {
+                                Toast.makeText(MainActivity.this, getResources().getString(R.string.perm_get_accounts), Toast.LENGTH_LONG).show();
+                            }
+                            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.GET_ACCOUNTS}, 3);
+                        }
+                    }
+                } else {
+                    unRegisterForNotifications();
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_notif_disabled), Toast.LENGTH_SHORT).show();
+                }
+                break;
+            case "pref_topic1":
+            case "pref_topic2":
+            case "pref_topic3":
+                String topic = prefs.getString(key, null);
+                registerTopic(topic);
+                Toast.makeText(MainActivity.this, topic + " " + getResources().getString(R.string.registered_topic), Toast.LENGTH_SHORT).show();
+                break;
+        }
     }
 
     @Override
@@ -244,6 +338,13 @@ public class MainActivity extends AppCompatActivity {
                             Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
                         }
                         break;
+                    case 3:
+                        if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                            registerForNotifications();
+                        } else {
+                            Toast.makeText(this, "Permission was not granted", Toast.LENGTH_SHORT).show();
+                        }
+                        break;
                     default:
                         super.onRequestPermissionsResult(requestCode, permission, grantResults);
                         break;
@@ -260,24 +361,29 @@ public class MainActivity extends AppCompatActivity {
         map = (MapView) findViewById(R.id.map);
         map.setBuiltInZoomControls(true);
         map.setMultiTouchControls(true);
-        //map.setTileSource(TileSourceFactory.MAPQUESTOSM);
-        map.setTileSource(new OnlineTileSourceBase("T-MAPY OSM", 0, 18, 256, "",
-                new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:osm_bing&zoom="}) {
-            @Override
-            public String getTileURLString(MapTile aTile) {
-                return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
-                        + mImageFilenameEnding;
-            }
-        });
+        map.setTileSource(tmapyOsmTiles);
 
         GeoPoint startPoint = new GeoPoint(50.215512, 15.811845);
         final IMapController mapController = map.getController();
         mapController.setZoom(15);
         mapController.setCenter(startPoint);
 
-        mVehiclesTextView = (TextView) findViewById(R.id.map_vehicles_count);
+        final MapTileProviderBasic tileProvider = new MapTileProviderBasic(getApplicationContext());
+        final ITileSource tileSource = new OnlineTileSourceBase("T-MAPY HillShade", 0, 18, 256, "",
+                new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:hillshade&zoom="}) {
+            @Override
+            public String getTileURLString(MapTile aTile) {
+                return getBaseUrl() + aTile.getZoomLevel() + "&y=" + aTile.getY() + "&x=" + aTile.getX()
+                        + mImageFilenameEnding;
+            }
+        };
+        tileProvider.setTileSource(tileSource);
+        hillShade = new TilesOverlay(tileProvider, this.getBaseContext());
+        hillShade.setLoadingBackgroundColor(Color.TRANSPARENT);
+        map.getOverlays().add(hillShade);
 
         //Init vehicles overlay
+        mVehiclesTextView = (TextView) findViewById(R.id.map_vehicles_count);
         vehiclesOverlay = new RadiusMarkerClusterer(getApplication());
         Drawable clusterIconD = ContextCompat.getDrawable(getBaseContext(), R.drawable.cluster_icon);
         Bitmap clusterIcon = ((BitmapDrawable) clusterIconD).getBitmap();
@@ -286,7 +392,6 @@ public class MainActivity extends AppCompatActivity {
                 TEXT_SIZE_DIP, getResources().getDisplayMetrics()));
         vehiclesOverlay.getTextPaint().setFakeBoldText(true);
         vehiclesOverlay.getTextPaint().setColor(Color.DKGRAY);
-
         map.getOverlays().add(vehiclesOverlay);
 
         //Add Scale Bar
@@ -313,7 +418,6 @@ public class MainActivity extends AppCompatActivity {
         myLocationOverlay.setDrawAccuracyEnabled(true);
         myLocationOverlay.disableFollowLocation();
         myLocationOverlay.enableMyLocation();
-
         map.getOverlays().add(myLocationOverlay);
 
         map.postInvalidate();
@@ -327,9 +431,9 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
-                getResources().getString(R.string.data_loading_message), true);
-        ScheduleLoadMarkers();
+        if (sharedPreferences.getBoolean(RELOAD_ENABLED, false)) {
+            ScheduleLoadMarkers();
+        }
     }
 
     /**
@@ -338,6 +442,9 @@ public class MainActivity extends AppCompatActivity {
     private void ScheduleLoadMarkers() {
         if (reloadDataTimer != null) //to prevent schedule timer multipletimes
             reloadDataTimer.cancel();
+
+        progress = ProgressDialog.show(this, getResources().getString(R.string.data_loading_title),
+                getResources().getString(R.string.data_loading_message), true);
 
         reloadDataTimer = new Timer();
         reloadDataTimer.schedule(new TimerTask() {
@@ -437,10 +544,12 @@ public class MainActivity extends AppCompatActivity {
                                     String textToIcon = parts[0];
                                     if ("b".equals(feature.getExtendedData("type"))) {
                                         marker.setTitle("Bus " + feature.getExtendedData("line_number") + " / " + feature.getExtendedData("service_number"));
-                                        marker.setIcon(writeOnDrawable(R.drawable.bus48x48, textToIcon));
+                                        //marker.setIcon(writeOnDrawable(R.drawable.bus48x48, textToIcon));
+                                        marker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.drawable.bus48x48));
                                     } else {
                                         marker.setTitle(feature.mName);
-                                        marker.setIcon(writeOnDrawable(R.drawable.rail48x48, textToIcon));
+                                        //marker.setIcon(writeOnDrawable(R.drawable.rail48x48, textToIcon));
+                                        marker.setIcon(ContextCompat.getDrawable(MainActivity.this, R.drawable.rail48x48));
                                     }
 
                                     marker.setRelatedObject(feature);
@@ -512,17 +621,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onStop(){
+    protected void onStop() {
         super.onStop();
         if (myLocationOverlay != null) myLocationOverlay.enableMyLocation();
         if (reloadDataTimer != null) reloadDataTimer.cancel();
     }
 
     @Override
-    protected void onRestart()
-    {
+    protected void onRestart() {
         super.onRestart();
         if (myLocationOverlay != null) myLocationOverlay.disableMyLocation();
-        ScheduleLoadMarkers();
+        if (sharedPreferences.getBoolean(RELOAD_ENABLED, false)) ScheduleLoadMarkers();
     }
 }

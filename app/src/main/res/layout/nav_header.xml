@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="150dp"
+    android:layout_height="160dp"
     android:background="?attr/colorPrimaryDark"
     android:gravity="bottom"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:padding="15dp"
     android:theme="@style/ThemeOverlay.AppCompat.Dark">
 
     <LinearLayout
@@ -18,12 +18,13 @@
             android:id="@+id/tm_logo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
             android:src="@drawable/tmapy_min" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="30sp"
+            android:textSize="28sp"
             android:padding="0dp"
             android:layout_marginLeft="20dp"
             android:text="IREDO Viewer" />

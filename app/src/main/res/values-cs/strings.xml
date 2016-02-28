@@ -9,8 +9,19 @@
     <string name="drawer_close">Zavřít nabídku</string>
     <string name="drawer_open">Otevřít nabídku</string>
     <string name="menu_title">Hlavní nabídka</string>
-    <string name="menu_autorefresh">Automaticky obnovovat</string>
+    <string name="menu_autorefresh">Automaticky načítat</string>
     <string name="menu_reloading_enabled">Obnovování zapnuto</string>
     <string name="menu_reloading_disabled">Obnovování vypnuto</string>
     <string name="menu_github">Domácí stránka na GitHub</string>
+    <string name="perm_get_accounts">Právo je potřeba pro registraci notifikací</string>
+    <string name="menu_register_notif">Notifikace dispečinku</string>
+    <string name="menu_notif_disabled">Notifikace vypnuty</string>
+    <string name="pref_notifications_category">Notifikace</string>
+    <string name="pref_enable_notifications">Zapnout notifikace</string>
+    <string name="pref_enable_notifications_summ">Zapnout notifikace z dispečinku</string>
+    <string name="pref_topic1">1. Téma/skupina</string>
+    <string name="pref_topic2">2. Téma/skupina</string>
+    <string name="pref_topic3">3. Téma/skupina</string>
+    <string name="menu_settings">Nastavení</string>
+    <string name="registered_topic">zaregistrováno</string>
 </resources>
