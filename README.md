@@ -4,7 +4,9 @@ Data jsou získávána ze služeb [veřejné webové aplikace IREDO](http://tabu
 
 ![alt tag](Screenshot_v0.3.png)
 
-Při spuštění zjistí aktuální polohy vozidel a vykreslí je v mapě, kterou postupně aktualizuje. Po kliknutí na vozidlo se zobrazí podrobnější informace. Na ikoně každého z vozidel se zobrazuje cílové město, kam spoj míří.
+Při spuštění zjistí aktuální polohy vozidel a vykreslí je v mapě, kterou postupně aktualizuje. Po kliknutí na vozidlo se zobrazí podrobnější informace.
+
+V nastavení je možné si zaregistrovat odběr zpráv/upozornění z dispečinku IREDO. 
 
 ## Instalace
 - Pro instalaci si v telefonu [povolte instalaci aplikací z neznámých zdrojů](http://www.androidcentral.com/allow-app-installs-unknown-sources). V nastavení, v menu *Zabezpečení* zaškrtněne *Neznámé zdroje*
