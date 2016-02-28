@@ -204,6 +204,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
      */
     private void unRegisterForNotifications() {
         if (PlayServicesUtils.checkPlayServices(this)) {
+            sharedPreferences.edit().putString("pref_topic1", "").apply();
+            sharedPreferences.edit().putString("pref_topic2", "").apply();
+            sharedPreferences.edit().putString("pref_topic3", "").apply();
             // Start IntentService to register this application with GCM.
             Intent intent = new Intent(this, GcmRegistrationService.class);
             intent.setAction(GcmRegistrationService.INTENT_ACTION_UNREGISTER_NOTIFICATIONS);
