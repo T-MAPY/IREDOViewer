@@ -52,10 +52,11 @@ import cz.tmapy.android.iredoviewer.R;
 public class GcmRegistrationService extends IntentService {
 
     private static final String TAG = "GcmRegistrationService";
-    public static final String INTENT_ACTION_REGISTER = "cz.tmapy.android.iredoviewer.gcm.REGISTER";
-    public static final String INTENT_ACTION_UNREGISTER = "cz.tmapy.android.iredoviewer.gcm.UNREGISTER";
-
-    private static final String[] TOPICS = {"global"};
+    public static final String INTENT_ACTION_REGISTER_NOTIFICATIONS = "cz.tmapy.android.iredoviewer.gcm.REGISTER_NOTIFICATIONS";
+    public static final String INTENT_ACTION_UNREGISTER_NOTIFICATIONS = "cz.tmapy.android.iredoviewer.gcm.UNREGISTER_NOTIFICATIONS";
+    public static final String INTENT_ACTION_REGISTER_TOPIC = "cz.tmapy.android.iredoviewer.gcm.REGISTER_TOPIC";
+    public static final String INTENT_EXTRA_TOPIC = "topic";
+    private static final String GLOBAL_TOPIC_NAME = "global";
 
     public static final String GCM_TOKEN = "gcmToken";
 
@@ -73,7 +74,7 @@ public class GcmRegistrationService extends IntentService {
     @Override
     protected void onHandleIntent(Intent intent) {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        if (intent.getAction().equals(REGISTRATION_SERVER_URL)) {
+        if (intent.getAction().equals(INTENT_ACTION_REGISTER_NOTIFICATIONS)) {
             try {
                 // [START register_for_gcm]
                 // Initially this call goes out to the network to retrieve the token, subsequent calls
@@ -101,8 +102,8 @@ public class GcmRegistrationService extends IntentService {
                     sendRegistrationToServer(android.os.Build.MODEL, gmail, token);
                 }
 
-                // Subscribe to topic channels
-                subscribeTopics(token);
+                // Subscribe to global topic channel
+                subscribeTopic(token, GLOBAL_TOPIC_NAME);
 
                 sharedPreferences.edit().putString(GCM_TOKEN, token).apply();
 
@@ -112,7 +113,7 @@ public class GcmRegistrationService extends IntentService {
                 sharedPreferences.edit().remove(GCM_TOKEN).apply();
             }
 
-        } else if (intent.getAction().equals(UNREGISTRATION_SERVER_URL)) {
+        } else if (intent.getAction().equals(INTENT_ACTION_UNREGISTER_NOTIFICATIONS)) {
             try {
                 //InstanceID.getInstance(this).deleteToken(getString(R.string.gcm_defaultSenderId), null);
                 InstanceID.getInstance(this).deleteInstanceID();
@@ -126,12 +127,19 @@ public class GcmRegistrationService extends IntentService {
                 Log.e(TAG, e.getLocalizedMessage(), e);
                 Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
             }
+        } else if (intent.getAction().equals(INTENT_ACTION_REGISTER_TOPIC)) {
+            try {
+                subscribeTopic(sharedPreferences.getString(GCM_TOKEN, null), intent.getStringExtra(INTENT_EXTRA_TOPIC));
+            } catch (IOException e) {
+                Log.e(TAG, e.getLocalizedMessage(), e);
+                Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+            }
         }
     }
 
     /**
      * Persist registration to third-party servers.
-     * <p>
+     * <p/>
      * Modify this method to associate the user's GCM registration token with any server-side account
      * maintained by your application.
      *
@@ -234,20 +242,10 @@ public class GcmRegistrationService extends IntentService {
         }
     }
 
-    /**
-     * Subscribe to any GCM topics of interest, as defined by the TOPICS constant.
-     *
-     * @param token GCM token
-     * @throws IOException if unable to reach the GCM PubSub service
-     */
-    // [START subscribe_topics]
-    private void subscribeTopics(String token) throws IOException {
+    private void subscribeTopic(String token, String topic) throws IOException {
         GcmPubSub pubSub = GcmPubSub.getInstance(this);
-        for (String topic : TOPICS) {
-            pubSub.subscribe(token, "/topics/" + topic, null);
-        }
+        pubSub.subscribe(token, "/topics/" + topic, null);
     }
-    // [END subscribe_topics]
 
     /**
      * Checks network connectivity

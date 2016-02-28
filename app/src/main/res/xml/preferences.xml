@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:key="pref_notifications_category"
+        android:title="@string/pref_notifications_category">
+        <CheckBoxPreference
+            android:key="pref_enable_notifications"
+            android:title="@string/pref_enable_notifications"
+            android:summary="@string/pref_enable_notifications_summ"
+            android:defaultValue="false"/>
+        <EditTextPreference android:key="pref_topic1"
+            android:dependency="pref_enable_notifications"
+            android:title="@string/pref_topic1" />
+        <EditTextPreference android:key="pref_topic2"
+            android:dependency="pref_enable_notifications"
+            android:title="@string/pref_topic2"/>
+        <EditTextPreference android:key="pref_topic3"
+            android:dependency="pref_enable_notifications"
+            android:title="@string/pref_topic3"/>
+    </PreferenceCategory>
+</PreferenceScreen>

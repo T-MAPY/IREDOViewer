@@ -1,13 +1,8 @@
 package cz.tmapy.android.iredoviewer;
 
 import android.Manifest;
-import android.accounts.Account;
-import android.accounts.AccountManager;
 import android.app.ProgressDialog;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -26,7 +21,6 @@ import android.preference.PreferenceManager;
 import android.support.design.widget.NavigationView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.ActionBarDrawerToggle;
@@ -35,7 +29,6 @@ import android.os.Bundle;
 import android.support.v7.widget.SwitchCompat;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.util.Patterns;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -45,9 +38,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import com.google.android.gms.gcm.GoogleCloudMessaging;
-import com.google.android.gms.iid.InstanceID;
 
 import org.osmdroid.api.IMapController;
 import org.osmdroid.bonuspack.clustering.RadiusMarkerClusterer;
@@ -80,12 +70,11 @@ import java.util.Date;
 import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.regex.Pattern;
 
 import cz.tmapy.android.iredoviewer.gcm.GcmRegistrationService;
 import cz.tmapy.android.iredoviewer.utils.PlayServicesUtils;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     private final static String TAG = "IREDOViewerMap";
     private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
@@ -115,12 +104,14 @@ public class MainActivity extends AppCompatActivity {
     private TextView mVehiclesTextView;
 
     SharedPreferences sharedPreferences;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        sharedPreferences.registerOnSharedPreferenceChangeListener(this);
         if (!sharedPreferences.contains(RELOAD_ENABLED))
             sharedPreferences.edit().putBoolean(RELOAD_ENABLED, true).apply();
 
@@ -146,60 +137,21 @@ public class MainActivity extends AppCompatActivity {
         Menu menu = nvDrawer.getMenu();
 
         MenuItem reloadMenuItem = menu.findItem(R.id.reload_menu_item);
-        LinearLayout reloadLinearLayout= (LinearLayout) MenuItemCompat.getActionView(reloadMenuItem);
+        LinearLayout reloadLinearLayout = (LinearLayout) MenuItemCompat.getActionView(reloadMenuItem);
         SwitchCompat relaodSwitchCompat = (SwitchCompat) reloadLinearLayout.findViewById(R.id.reload_switch);
         relaodSwitchCompat.setChecked(sharedPreferences.getBoolean(RELOAD_ENABLED, false));
         relaodSwitchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 SharedPreferences sharedPreferences =
                         PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                if (isChecked)
-                {
+                if (isChecked) {
                     ScheduleLoadMarkers();
                     sharedPreferences.edit().putBoolean(RELOAD_ENABLED, true).apply();
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_enabled), Toast.LENGTH_SHORT).show();
-                }else
-                {
+                } else {
                     if (reloadDataTimer != null) reloadDataTimer.cancel();
                     sharedPreferences.edit().putBoolean(RELOAD_ENABLED, false).apply();
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_reloading_disabled), Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
-
-        MenuItem notificationsMenuItem = menu.findItem(R.id.register_notif_menu_item);
-        LinearLayout notifLinearLayout= (LinearLayout) MenuItemCompat.getActionView(notificationsMenuItem);
-        SwitchCompat notifSwitchCompat = (SwitchCompat) notifLinearLayout.findViewById(R.id.notifications_switch);
-        if (sharedPreferences.getString(GcmRegistrationService.GCM_TOKEN, null) != null)
-            notifSwitchCompat.setChecked(true);
-        notifSwitchCompat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                SharedPreferences sharedPreferences =
-                        PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
-                String token = sharedPreferences.getString(GcmRegistrationService.GCM_TOKEN, null);
-                if (isChecked)
-                {
-                    if (token == null)
-                    {
-                        //TRY TO LOCATE USER
-                        if (android.os.Build.VERSION.SDK_INT < 23) {
-                            registerForNotifications();
-                        } else if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.GET_ACCOUNTS) == PackageManager.PERMISSION_GRANTED) {
-                            registerForNotifications();
-                        } else {
-                            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, Manifest.permission.GET_ACCOUNTS)) {
-                                Toast.makeText(MainActivity.this, getResources().getString(R.string.perm_get_accounts), Toast.LENGTH_LONG).show();
-                            }
-                            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.GET_ACCOUNTS}, 3);
-                        }
-                    }
-                }else
-                {
-                    if (token != null)
-                    {
-                        unRegisterForNotifications();
-                        Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_notif_disabled), Toast.LENGTH_SHORT).show();
-                    }
                 }
             }
         });
@@ -238,12 +190,11 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Start service to register for notifications
      */
-    private void registerForNotifications()
-    {
+    private void registerForNotifications() {
         if (PlayServicesUtils.checkPlayServices(this)) {
             // Start IntentService to register this application with GCM.
             Intent intent = new Intent(this, GcmRegistrationService.class);
-            intent.setAction(GcmRegistrationService.INTENT_ACTION_REGISTER);
+            intent.setAction(GcmRegistrationService.INTENT_ACTION_REGISTER_NOTIFICATIONS);
             startService(intent);
         }
     }
@@ -251,18 +202,30 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Unregister notifications
      */
-    private void unRegisterForNotifications()
-    {
+    private void unRegisterForNotifications() {
         if (PlayServicesUtils.checkPlayServices(this)) {
             // Start IntentService to register this application with GCM.
             Intent intent = new Intent(this, GcmRegistrationService.class);
-            intent.setAction(GcmRegistrationService.INTENT_ACTION_UNREGISTER);
+            intent.setAction(GcmRegistrationService.INTENT_ACTION_UNREGISTER_NOTIFICATIONS);
             startService(intent);
         }
     }
 
     /**
+     * Register topic
+     * @param topic
+     */
+    private void registerTopic(String topic){
+        if (PlayServicesUtils.checkPlayServices(this)){
+            Intent intent = new Intent(this, GcmRegistrationService.class);
+            intent.setAction(GcmRegistrationService.INTENT_ACTION_REGISTER_TOPIC);
+            intent.putExtra(GcmRegistrationService.INTENT_EXTRA_TOPIC, topic);
+            startService(intent);
+        }
+    }
+    /**
      * Nastavení reakcí na nabídky v navigation drawer
+     *
      * @param navigationView
      */
     private void setupDrawerContent(NavigationView navigationView) {
@@ -279,9 +242,13 @@ public class MainActivity extends AppCompatActivity {
                                 map.setTileSource(TileSourceFactory.MAPNIK);
                                 Toast.makeText(MainActivity.this, "Mapnik", Toast.LENGTH_SHORT).show();
                                 break;
+                            case R.id.settings_menu_item:
+                                Intent intent = new Intent(getApplicationContext(), Settings.class);
+                                startActivity(intent);
+                                break;
                             case R.id.github_item:
                                 Uri uri = Uri.parse("https://github.com/T-MAPY/IREDOViewer");
-                                startActivity( new Intent( Intent.ACTION_VIEW, uri ) );
+                                startActivity(new Intent(Intent.ACTION_VIEW, uri));
                                 break;
                             default:
                                 //Toast.makeText(MainActivity.this, "not implemented", Toast.LENGTH_SHORT).show();
@@ -294,6 +261,40 @@ public class MainActivity extends AppCompatActivity {
                         return true;
                     }
                 });
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences prefs, String key) {
+        // Aktualizuje lokální proměnné při změně konfigurace
+        switch (key) {
+            case "pref_enable_notifications":
+                if (prefs.getBoolean(key, true)) {
+                    if (prefs.getString(GcmRegistrationService.GCM_TOKEN, null) == null) {
+                        //TRY TO LOCATE USER
+                        if (android.os.Build.VERSION.SDK_INT < 23) {
+                            registerForNotifications();
+                        } else if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.GET_ACCOUNTS) == PackageManager.PERMISSION_GRANTED) {
+                            registerForNotifications();
+                        } else {
+                            if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this, Manifest.permission.GET_ACCOUNTS)) {
+                                Toast.makeText(MainActivity.this, getResources().getString(R.string.perm_get_accounts), Toast.LENGTH_LONG).show();
+                            }
+                            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.GET_ACCOUNTS}, 3);
+                        }
+                    }
+                } else {
+                    unRegisterForNotifications();
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.menu_notif_disabled), Toast.LENGTH_SHORT).show();
+                }
+                break;
+            case "pref_topic1":
+            case "pref_topic2":
+            case "pref_topic3":
+                String topic = prefs.getString(key, null);
+                registerTopic(topic);
+                Toast.makeText(MainActivity.this, topic + " " + getResources().getString(R.string.registered_topic), Toast.LENGTH_SHORT).show();
+                break;
+        }
     }
 
     @Override
@@ -368,7 +369,7 @@ public class MainActivity extends AppCompatActivity {
         mapController.setCenter(startPoint);
 
         final MapTileProviderBasic tileProvider = new MapTileProviderBasic(getApplicationContext());
-        final ITileSource tileSource =  new OnlineTileSourceBase("T-MAPY HillShade", 0, 18, 256, "",
+        final ITileSource tileSource = new OnlineTileSourceBase("T-MAPY HillShade", 0, 18, 256, "",
                 new String[]{"http://services6.tmapserver.cz/geoserver/gwc/service/gmaps?layers=services6:hillshade&zoom="}) {
             @Override
             public String getTileURLString(MapTile aTile) {
@@ -377,7 +378,7 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         tileProvider.setTileSource(tileSource);
-        hillShade =  new TilesOverlay(tileProvider, this.getBaseContext());
+        hillShade = new TilesOverlay(tileProvider, this.getBaseContext());
         hillShade.setLoadingBackgroundColor(Color.TRANSPARENT);
         map.getOverlays().add(hillShade);
 
@@ -430,8 +431,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        if (sharedPreferences.getBoolean(RELOAD_ENABLED, false))
-        {
+        if (sharedPreferences.getBoolean(RELOAD_ENABLED, false)) {
             ScheduleLoadMarkers();
         }
     }
@@ -621,15 +621,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onStop(){
+    protected void onStop() {
         super.onStop();
         if (myLocationOverlay != null) myLocationOverlay.enableMyLocation();
         if (reloadDataTimer != null) reloadDataTimer.cancel();
     }
 
     @Override
-    protected void onRestart()
-    {
+    protected void onRestart() {
         super.onRestart();
         if (myLocationOverlay != null) myLocationOverlay.disableMyLocation();
         if (sharedPreferences.getBoolean(RELOAD_ENABLED, false)) ScheduleLoadMarkers();

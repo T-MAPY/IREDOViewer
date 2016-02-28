@@ -48,8 +48,9 @@
 
         <service android:name=".gcm.GcmRegistrationService">
             <intent-filter>
-                <action android:name="cz.tmapy.android.iredoviewer.gcm.REGISTER" />
-                <action android:name="cz.tmapy.android.iredoviewer.gcm.UNREGISTER" />
+                <action android:name="cz.tmapy.android.iredoviewer.gcm.REGISTER_NOTIFICATIONS" />
+                <action android:name="cz.tmapy.android.iredoviewer.gcm.UNREGISTER_NOTIFICATIONS" />
+                <action android:name="cz.tmapy.android.iredoviewer.gcm.REGISTER_TOPIC" />
             </intent-filter>
         </service>
 
@@ -58,6 +59,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".Settings"
+            android:label="@string/menu_settings"
+            android:theme="@android:style/Theme.Holo.Light.Dialog"
+            android:parentActivityName=".MainActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="cz.tmapy.android.iredoviewer.Settings" />
         </activity>
     </application>
 
