@@ -30,15 +30,51 @@
                 android:layout_width="fill_parent"
                 android:layout_height="fill_parent" />
 
+            <Button
+                android:id="@+id/map_favorite1"
+                android:textSize="16sp"
+                android:visibility="invisible"
+                android:layout_width="110dp"
+                android:layout_height="45dp"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentTop="true"
+                android:padding="5dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="5dp"/>
+            <Button
+                android:id="@+id/map_favorite2"
+                android:textSize="16sp"
+                android:visibility="invisible"
+                android:layout_width="110dp"
+                android:layout_height="45dp"
+                android:layout_alignParentRight="true"
+                android:layout_below="@+id/map_favorite1"
+                android:padding="5dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="5dp"/>
+            <Button
+                android:id="@+id/map_favorite3"
+                android:textSize="16sp"
+                android:visibility="invisible"
+                android:layout_width="110dp"
+                android:layout_height="45dp"
+                android:layout_alignParentRight="true"
+                android:layout_below="@+id/map_favorite2"
+                android:padding="5dp"
+                android:layout_marginTop="5dp"
+                android:layout_marginRight="5dp"/>
+
             <TextView
                 android:id="@+id/map_vehicles_count"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_alignParentRight="true"
-                android:layout_alignParentTop="true"
+                android:layout_alignParentLeft="true"
+                android:layout_alignParentBottom="true"
                 android:background="#80DDDDDD"
+                android:layout_marginBottom="10dp"
+                android:layout_marginLeft="12dp"
                 android:padding="5dp"
-                android:text="0 vozidel"
+                android:text="0 spojů"
                 android:textSize="16dp" />
 
             <ImageButton
