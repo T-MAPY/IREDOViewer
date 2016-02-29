@@ -5,10 +5,8 @@
         <EditTextPreference android:key="pref_favorite1"
             android:title="@string/pref_favorite1" />
         <EditTextPreference android:key="pref_favorite2"
-            android:dependency="pref_enable_notifications"
             android:title="@string/pref_favorite2"/>
         <EditTextPreference android:key="pref_favorite3"
-            android:dependency="pref_enable_notifications"
             android:title="@string/pref_favorite3"/>
     </PreferenceCategory>
     <PreferenceCategory android:key="pref_notifications_category"
