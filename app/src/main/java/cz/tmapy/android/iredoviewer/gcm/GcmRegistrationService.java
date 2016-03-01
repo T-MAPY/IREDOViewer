@@ -246,7 +246,8 @@ public class GcmRegistrationService extends IntentService {
         if (topic != null && !"".equals(topic))
         {
             GcmPubSub pubSub = GcmPubSub.getInstance(this);
-            pubSub.subscribe(token, "/topics/" + topic, null);
+			if (pubSub != null)
+				pubSub.subscribe(token, "/topics/" + topic, null);
         }
     }
 
