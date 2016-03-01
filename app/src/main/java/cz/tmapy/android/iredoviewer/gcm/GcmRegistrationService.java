@@ -21,6 +21,7 @@ import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.gcm.GcmPubSub;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 import com.google.android.gms.iid.InstanceID;
+import com.google.android.gms.playlog.internal.LogEvent;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -118,11 +119,16 @@ public class GcmRegistrationService extends IntentService {
                 //InstanceID.getInstance(this).deleteToken(getString(R.string.gcm_defaultSenderId), null);
                 InstanceID.getInstance(this).deleteInstanceID();
 
-                if (isNetworkOnline()) {
-                    sendUnRegistrationToServer(sharedPreferences.getString(GCM_TOKEN, null));
+                String token = sharedPreferences.getString(GCM_TOKEN, null);
+                if (token != null) {
+                    if (isNetworkOnline()) {
+                        sendUnRegistrationToServer(token);
+                    }
+                    sharedPreferences.edit().remove(GCM_TOKEN).apply();
+                } else
+                {
+                    Log.e(TAG,"Při odregistraci notifikací nebyl nalezen TOKEN v SharedPreferences");
                 }
-                sharedPreferences.edit().remove(GCM_TOKEN).apply();
-
             } catch (IOException e) {
                 Log.e(TAG, e.getLocalizedMessage(), e);
                 Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
