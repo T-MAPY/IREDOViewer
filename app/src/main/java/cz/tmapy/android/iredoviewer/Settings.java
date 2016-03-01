@@ -15,6 +15,15 @@ public class Settings extends PreferenceActivity implements SharedPreferences.On
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.preferences);
 
+        EditTextPreference editTextLine1 = (EditTextPreference) findPreference("pref_favorite1");
+        editTextLine1.setSummary(editTextLine1.getText());
+
+        EditTextPreference editTextLine2 = (EditTextPreference) findPreference("pref_favorite2");
+        editTextLine2.setSummary(editTextLine2.getText());
+
+        EditTextPreference editTextLine3 = (EditTextPreference) findPreference("pref_favorite3");
+        editTextLine3.setSummary(editTextLine3.getText());
+
         EditTextPreference editText1 = (EditTextPreference) findPreference("pref_topic1");
         editText1.setSummary(editText1.getText());
 

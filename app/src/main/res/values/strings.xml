@@ -24,4 +24,9 @@
     <string name="pref_topic3">Third topic</string>
     <string name="menu_settings">Settings</string>
     <string name="registered_topic">registered</string>
+    <string name="pref_favorite3">3. line</string>
+    <string name="pref_favorite2">2. line</string>
+    <string name="pref_favorite1">1. line</string>
+    <string name="pref_favorites_category">Favorit lines</string>
+    <string name="registered_favorite">New favorit line</string>
 </resources>

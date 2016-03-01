@@ -5,7 +5,7 @@
     <string name="data_loading_message">Moment prosím</string>
     <string name="perm_write_cache">Právo je potřeba pro ukládání mapové cache</string>
     <string name="tooltip_state">Stav k: </string>
-    <string name="map_vehicles">vozidel</string>
+    <string name="map_vehicles">spojů</string>
     <string name="drawer_close">Zavřít nabídku</string>
     <string name="drawer_open">Otevřít nabídku</string>
     <string name="menu_title">Hlavní nabídka</string>
@@ -24,4 +24,9 @@
     <string name="pref_topic3">3. Téma/skupina</string>
     <string name="menu_settings">Nastavení</string>
     <string name="registered_topic">zaregistrováno</string>
+    <string name="pref_favorite3">3. linka</string>
+    <string name="pref_favorite2">2. linka</string>
+    <string name="pref_favorite1">1. linka</string>
+    <string name="pref_favorites_category">Oblíbené linky</string>
+    <string name="registered_favorite">Nová oblíbená linka</string>
 </resources>

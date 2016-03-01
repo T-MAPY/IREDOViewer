@@ -33,6 +33,7 @@ import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
@@ -53,6 +54,7 @@ import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase;
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory;
 import org.osmdroid.util.GeoPoint;
 import org.osmdroid.views.MapView;
+import org.osmdroid.views.overlay.OverlayItem;
 import org.osmdroid.views.overlay.ScaleBarOverlay;
 import org.osmdroid.views.overlay.TilesOverlay;
 import org.osmdroid.views.overlay.compass.CompassOverlay;
@@ -63,10 +65,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.lang.annotation.ElementType;
 import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.TimeZone;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -297,6 +301,42 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 registerTopic(topic);
                 Toast.makeText(MainActivity.this, topic + " " + getResources().getString(R.string.registered_topic), Toast.LENGTH_SHORT).show();
                 break;
+            case "pref_favorite1":
+                String linefirst = prefs.getString(key, null);
+                Button firstFavoriteButton = (Button) findViewById(R.id.map_favorite1);
+                firstFavoriteButton.setText(linefirst);
+                if (!"".equals(linefirst))
+                {
+                    firstFavoriteButton.setVisibility(View.VISIBLE);
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.registered_favorite) + " " + linefirst, Toast.LENGTH_SHORT).show();
+                }
+                else
+                    firstFavoriteButton.setVisibility(View.INVISIBLE);
+                break;
+            case "pref_favorite2":
+                String linesecond = prefs.getString(key, null);
+                Button secondFavoriteButton = (Button) findViewById(R.id.map_favorite2);
+                secondFavoriteButton.setText(linesecond);
+                if (!"".equals(linesecond))
+                {
+                    secondFavoriteButton.setVisibility(View.VISIBLE);
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.registered_favorite) + " " + linesecond, Toast.LENGTH_SHORT).show();
+                }
+                else
+                    secondFavoriteButton.setVisibility(View.INVISIBLE);
+                break;
+            case "pref_favorite3":
+                String linethird = prefs.getString(key, null);
+                Button thirdFavoriteButton = (Button) findViewById(R.id.map_favorite3);
+                thirdFavoriteButton.setText(linethird);
+                if (!"".equals(linethird))
+                {
+                    thirdFavoriteButton.setVisibility(View.VISIBLE);
+                    Toast.makeText(MainActivity.this, getResources().getString(R.string.registered_favorite) + " " + linethird, Toast.LENGTH_SHORT).show();
+                }
+                else
+                    thirdFavoriteButton.setVisibility(View.INVISIBLE);
+                break;
         }
     }
 
@@ -424,6 +464,90 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
         map.getOverlays().add(myLocationOverlay);
 
         map.postInvalidate();
+
+        final Button firstFavoriteButton = (Button) findViewById(R.id.map_favorite1);
+        firstFavoriteButton.setAlpha(0.5f);
+        firstFavoriteButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Boolean found = false;
+                Iterator itr = vehiclesOverlay.getItems().iterator();
+                while(itr.hasNext()) {
+                    Marker element = (Marker)itr.next();
+                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite1","")))
+                    {
+                        map.getController().animateTo(element.getPosition());
+                        found = true;
+                        Toast.makeText(MainActivity.this, "Posun na linku " + firstFavoriteButton.getText(), Toast.LENGTH_SHORT).show();
+                        break;
+                    }
+                }
+                if (!found)
+                    Toast.makeText(MainActivity.this, "Linka " + firstFavoriteButton.getText() + " momentálně nejede", Toast.LENGTH_SHORT).show();
+            }
+        });
+        String f1 = sharedPreferences.getString("pref_favorite1", null);
+        if (f1 != null && !"".equals(f1))
+        {
+            firstFavoriteButton.setText(sharedPreferences.getString("pref_favorite1", null));
+            firstFavoriteButton.setVisibility(View.VISIBLE);
+        }
+
+        final Button secondFavoriteButton = (Button) findViewById(R.id.map_favorite2);
+        secondFavoriteButton.setAlpha(0.5f);
+        secondFavoriteButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Boolean found = false;
+                Iterator itr = vehiclesOverlay.getItems().iterator();
+                while(itr.hasNext()) {
+                    Marker element = (Marker)itr.next();
+                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite2","")))
+                    {
+                        map.getController().animateTo(element.getPosition());
+                        found = true;
+                        Toast.makeText(MainActivity.this, "Posun na linku " + secondFavoriteButton.getText(), Toast.LENGTH_SHORT).show();
+                        break;
+                    }
+                }
+                if (!found)
+                    Toast.makeText(MainActivity.this, "Linka " + secondFavoriteButton.getText() + " momentálně nejede", Toast.LENGTH_SHORT).show();
+            }
+        });
+        String f2 = sharedPreferences.getString("pref_favorite2", null);
+        if (f2 != null && !"".equals(f2))
+        {
+            secondFavoriteButton.setText(sharedPreferences.getString("pref_favorite2", null));
+            secondFavoriteButton.setVisibility(View.VISIBLE);
+        }
+
+        final Button thirdFavoriteButton = (Button) findViewById(R.id.map_favorite3);
+        thirdFavoriteButton.setAlpha(0.5f);
+        thirdFavoriteButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Boolean found = false;
+                Iterator itr = vehiclesOverlay.getItems().iterator();
+                while(itr.hasNext()) {
+                    Marker element = (Marker)itr.next();
+                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite3","")))
+                    {
+                        map.getController().animateTo(element.getPosition());
+                        found = true;
+                        Toast.makeText(MainActivity.this, "Posun na linku " + thirdFavoriteButton.getText(), Toast.LENGTH_SHORT).show();
+                        break;
+                    }
+                }
+                if (!found)
+                    Toast.makeText(MainActivity.this, "Linka " + thirdFavoriteButton.getText() + " momentálně nejede", Toast.LENGTH_SHORT).show();
+            }
+        });
+        String f3 = sharedPreferences.getString("pref_favorite3", null);
+        if (f3 != null && !"".equals(f3))
+        {
+            thirdFavoriteButton.setText(sharedPreferences.getString("pref_favorite3", null));
+            thirdFavoriteButton.setVisibility(View.VISIBLE);
+        }
 
         ImageButton gotoLocationButton = (ImageButton) findViewById(R.id.map_goto_location);
         gotoLocationButton.setAlpha(0.5f);
