@@ -244,7 +244,8 @@ public class GcmRegistrationService extends IntentService {
 
     private void subscribeTopic(String token, String topic) throws IOException {
         GcmPubSub pubSub = GcmPubSub.getInstance(this);
-        pubSub.subscribe(token, "/topics/" + topic, null);
+        if (pubSub != null)
+            pubSub.subscribe(token, "/topics/" + topic, null);
     }
 
     /**
