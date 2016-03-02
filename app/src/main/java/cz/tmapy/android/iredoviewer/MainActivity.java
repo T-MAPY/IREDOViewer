@@ -81,7 +81,9 @@ import cz.tmapy.android.iredoviewer.utils.PlayServicesUtils;
 public class MainActivity extends AppCompatActivity implements SharedPreferences.OnSharedPreferenceChangeListener {
 
     private final static String TAG = "IREDOViewerMap";
-    private final String mSpojeUrl = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=iredo:service_currentposition&maxFeatures=1000&outputFormat=application/json";
+    private final String mServiceUrlBase = "http://tabule.oredo.cz/geoserver/iredo/ows?service=WFS&version=1.0.0&request=GetFeature&outputFormat=application/json&";
+    private final String mSpojeUrl = "&typeName=iredo:service_currentposition&maxFeatures=1000";
+    private final String mDealyUrl = "&typeName=iredo:station_serviceschedule&viewparams=ident:"; //&viewparams=ident:b-2046234
 
     //https://guides.codepath.com/android/Fragment-Navigation-Drawer
     private DrawerLayout mDrawer;
@@ -588,7 +590,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
      */
     private void LoadMarkers() {
         DownloadGeoJsonFile downloadSpojeGeoJsonFile = new DownloadGeoJsonFile(1);
-        downloadSpojeGeoJsonFile.execute(mSpojeUrl);
+        downloadSpojeGeoJsonFile.execute(mServiceUrlBase + mSpojeUrl);
     }
 
     /**
