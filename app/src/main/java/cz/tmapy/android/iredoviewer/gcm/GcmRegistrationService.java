@@ -21,6 +21,7 @@ import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.gcm.GcmPubSub;
 import com.google.android.gms.gcm.GoogleCloudMessaging;
 import com.google.android.gms.iid.InstanceID;
+import com.google.android.gms.playlog.internal.LogEvent;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -118,11 +119,16 @@ public class GcmRegistrationService extends IntentService {
                 //InstanceID.getInstance(this).deleteToken(getString(R.string.gcm_defaultSenderId), null);
                 InstanceID.getInstance(this).deleteInstanceID();
 
-                if (isNetworkOnline()) {
-                    sendUnRegistrationToServer(sharedPreferences.getString(GCM_TOKEN, null));
+                String token = sharedPreferences.getString(GCM_TOKEN, null);
+                if (token != null) {
+                    if (isNetworkOnline()) {
+                        sendUnRegistrationToServer(token);
+                    }
+                    sharedPreferences.edit().remove(GCM_TOKEN).apply();
+                } else
+                {
+                    Log.e(TAG,"Při odregistraci notifikací nebyl nalezen TOKEN v SharedPreferences");
                 }
-                sharedPreferences.edit().remove(GCM_TOKEN).apply();
-
             } catch (IOException e) {
                 Log.e(TAG, e.getLocalizedMessage(), e);
                 Toast.makeText(this, e.getLocalizedMessage(), Toast.LENGTH_LONG).show();
@@ -157,8 +163,8 @@ public class GcmRegistrationService extends IntentService {
 
             HashMap<String, String> postDataParams = new HashMap<String, String>();
             postDataParams.put("regId", token);
-            postDataParams.put("name", name);
-            postDataParams.put("email", email);
+            if (name != null) postDataParams.put("name", name);
+            if (email != null) postDataParams.put("email", email);
 
             OutputStream os = conn.getOutputStream();
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
@@ -176,7 +182,7 @@ public class GcmRegistrationService extends IntentService {
                 while ((line = br.readLine()) != null) {
                     serverResponse += line;
                 }
-                Log.i(TAG, "Registration stored on server");
+                Log.i(TAG, "Registration stored on server with result: " + serverResponse);
             } else {
                 Log.w(TAG, "Server response: " + responseCode);
             }
@@ -225,7 +231,7 @@ public class GcmRegistrationService extends IntentService {
                 while ((line = br.readLine()) != null) {
                     serverResponse += line;
                 }
-                Log.i(TAG, "Client unregistered");
+                Log.i(TAG, "Client unregistered with response: " + serverResponse);
             } else {
                 Log.w(TAG, "Server response: " + responseCode);
             }
@@ -243,10 +249,10 @@ public class GcmRegistrationService extends IntentService {
     }
 
     private void subscribeTopic(String token, String topic) throws IOException {
-        if (topic != null && !"".equals(topic))
-        {
+        if (topic != null && !"".equals(topic)) {
             GcmPubSub pubSub = GcmPubSub.getInstance(this);
-            pubSub.subscribe(token, "/topics/" + topic, null);
+            if (pubSub != null)
+                pubSub.subscribe(token, "/topics/" + topic, null);
         }
     }
 
