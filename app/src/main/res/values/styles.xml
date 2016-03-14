@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
@@ -8,4 +8,8 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
+    <style name="NavigationDrawerStyle">
+        <item name="android:textSize">14sp</item><!-- text size in menu-->
+        <item name="android:textColor">@android:color/primary_text_light</item>
+    </style>
 </resources>
