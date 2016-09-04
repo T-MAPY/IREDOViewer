@@ -2,6 +2,7 @@ package cz.tmapy.android.iredoviewer;
 
 import android.Manifest;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -15,6 +16,8 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.preference.PreferenceManager;
@@ -307,36 +310,30 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
                 String linefirst = prefs.getString(key, null);
                 Button firstFavoriteButton = (Button) findViewById(R.id.map_favorite1);
                 firstFavoriteButton.setText(linefirst);
-                if (!"".equals(linefirst))
-                {
+                if (!"".equals(linefirst)) {
                     firstFavoriteButton.setVisibility(View.VISIBLE);
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.registered_favorite) + " " + linefirst, Toast.LENGTH_SHORT).show();
-                }
-                else
+                } else
                     firstFavoriteButton.setVisibility(View.INVISIBLE);
                 break;
             case "pref_favorite2":
                 String linesecond = prefs.getString(key, null);
                 Button secondFavoriteButton = (Button) findViewById(R.id.map_favorite2);
                 secondFavoriteButton.setText(linesecond);
-                if (!"".equals(linesecond))
-                {
+                if (!"".equals(linesecond)) {
                     secondFavoriteButton.setVisibility(View.VISIBLE);
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.registered_favorite) + " " + linesecond, Toast.LENGTH_SHORT).show();
-                }
-                else
+                } else
                     secondFavoriteButton.setVisibility(View.INVISIBLE);
                 break;
             case "pref_favorite3":
                 String linethird = prefs.getString(key, null);
                 Button thirdFavoriteButton = (Button) findViewById(R.id.map_favorite3);
                 thirdFavoriteButton.setText(linethird);
-                if (!"".equals(linethird))
-                {
+                if (!"".equals(linethird)) {
                     thirdFavoriteButton.setVisibility(View.VISIBLE);
                     Toast.makeText(MainActivity.this, getResources().getString(R.string.registered_favorite) + " " + linethird, Toast.LENGTH_SHORT).show();
-                }
-                else
+                } else
                     thirdFavoriteButton.setVisibility(View.INVISIBLE);
                 break;
         }
@@ -474,10 +471,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             public void onClick(View v) {
                 Boolean found = false;
                 Iterator itr = vehiclesOverlay.getItems().iterator();
-                while(itr.hasNext()) {
-                    Marker element = (Marker)itr.next();
-                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite1","")))
-                    {
+                while (itr.hasNext()) {
+                    Marker element = (Marker) itr.next();
+                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite1", ""))) {
                         map.getController().animateTo(element.getPosition());
                         found = true;
                         Toast.makeText(MainActivity.this, "Posun na linku " + firstFavoriteButton.getText(), Toast.LENGTH_SHORT).show();
@@ -489,8 +485,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             }
         });
         String f1 = sharedPreferences.getString("pref_favorite1", null);
-        if (f1 != null && !"".equals(f1))
-        {
+        if (f1 != null && !"".equals(f1)) {
             firstFavoriteButton.setText(sharedPreferences.getString("pref_favorite1", null));
             firstFavoriteButton.setVisibility(View.VISIBLE);
         }
@@ -502,10 +497,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             public void onClick(View v) {
                 Boolean found = false;
                 Iterator itr = vehiclesOverlay.getItems().iterator();
-                while(itr.hasNext()) {
-                    Marker element = (Marker)itr.next();
-                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite2","")))
-                    {
+                while (itr.hasNext()) {
+                    Marker element = (Marker) itr.next();
+                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite2", ""))) {
                         map.getController().animateTo(element.getPosition());
                         found = true;
                         Toast.makeText(MainActivity.this, "Posun na linku " + secondFavoriteButton.getText(), Toast.LENGTH_SHORT).show();
@@ -517,8 +511,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             }
         });
         String f2 = sharedPreferences.getString("pref_favorite2", null);
-        if (f2 != null && !"".equals(f2))
-        {
+        if (f2 != null && !"".equals(f2)) {
             secondFavoriteButton.setText(sharedPreferences.getString("pref_favorite2", null));
             secondFavoriteButton.setVisibility(View.VISIBLE);
         }
@@ -530,10 +523,9 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             public void onClick(View v) {
                 Boolean found = false;
                 Iterator itr = vehiclesOverlay.getItems().iterator();
-                while(itr.hasNext()) {
-                    Marker element = (Marker)itr.next();
-                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite3","")))
-                    {
+                while (itr.hasNext()) {
+                    Marker element = (Marker) itr.next();
+                    if (element.getTitle().contains(sharedPreferences.getString("pref_favorite3", ""))) {
                         map.getController().animateTo(element.getPosition());
                         found = true;
                         Toast.makeText(MainActivity.this, "Posun na linku " + thirdFavoriteButton.getText(), Toast.LENGTH_SHORT).show();
@@ -545,8 +537,7 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
             }
         });
         String f3 = sharedPreferences.getString("pref_favorite3", null);
-        if (f3 != null && !"".equals(f3))
-        {
+        if (f3 != null && !"".equals(f3)) {
             thirdFavoriteButton.setText(sharedPreferences.getString("pref_favorite3", null));
             thirdFavoriteButton.setVisibility(View.VISIBLE);
         }
@@ -589,8 +580,27 @@ public class MainActivity extends AppCompatActivity implements SharedPreferences
      * Load markers of buses and trains to the map
      */
     private void LoadMarkers() {
-        DownloadGeoJsonFile downloadSpojeGeoJsonFile = new DownloadGeoJsonFile(1);
-        downloadSpojeGeoJsonFile.execute(mServiceUrlBase + mSpojeUrl);
+        if (isNetworkOnline()) {
+            DownloadGeoJsonFile downloadSpojeGeoJsonFile = new DownloadGeoJsonFile(1);
+            downloadSpojeGeoJsonFile.execute(mServiceUrlBase + mSpojeUrl);
+        } else
+        {
+            if (progress != null) progress.dismiss();
+            Toast.makeText(MainActivity.this, getResources().getString(R.string.no_connection), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Checks network connectivity
+     *
+     * @return
+     */
+    public boolean isNetworkOnline() {
+        ConnectivityManager cm =
+                (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+        return activeNetwork != null && activeNetwork.isConnectedOrConnecting();
     }
 
     /**
